@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity  ^0.8.13;
+pragma solidity  ^0.8.20;
 
 import "../interfaces/IERC721.sol";
 import "../interfaces/IERC721MEta.sol";
@@ -10,13 +10,15 @@ import "../utils/Address.sol";
  contract ERC721Base is IERC721, IERC721Metadata, ERC165 {
     using AddressUtils for address;
 
-    string private _name;
-    string private _symbol;
+    string internal _name;
+    string internal _symbol;
     mapping(uint256 => address) public owners;
     mapping(address => uint256) public balances;
     mapping(uint256 => address) tokenApprovals;
     mapping(address => mapping(address => bool)) operatorApprovals;
 
+  
+    
     modifier OkApproval(uint256 _tokenID) {
         
         require(owners[_tokenID] == msg.sender || operatorApprovals[owners[_tokenID]][msg.sender], "Unauthorized User");
@@ -36,10 +38,7 @@ import "../utils/Address.sol";
         _;
     }
 
-    constructor(string memory __name, string memory __symbol) {
-        _name = __name;
-        _symbol = __symbol;
-    }
+    
 
     function supportsInterface(bytes4 _interfaceID) public pure override returns(bool) {
         // compliant with Open Zeppelin IERC721: 
@@ -68,8 +67,13 @@ import "../utils/Address.sol";
     }
 
     function tokenURI (uint256 _tokenID) public pure returns(string memory) {
-        
-        return ""; // Update this to add concert art, if applicable
+        uint256 token = _tokenID;
+
+        if (token < 100) {
+        string memory  returnValue = "HELL YEAH WOO GO TEAM";
+        return returnValue ;}
+        string memory altreturnvalue = "HELL YAH WOO WE DID IT.";
+        return altreturnvalue; // Update this to add concert art, if applicable
     }
 
     function approve( address _to, uint256 _tokenID) public OkApproval(_tokenID) {
@@ -77,16 +81,17 @@ import "../utils/Address.sol";
         emit Approval(ERC721Base.ownerOf(_tokenID), _to,_tokenID);
     }
 
-    function safeTransferFrom(address _from, address _to, uint256 _tokenId) public  {
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId) public {
         safeTransferFrom(_from,_to,_tokenId, "");
 
     }
     
     function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory _data) public OKTranfer(_tokenId) OKNFT(_tokenId){
         require(_to != address(0), "invalid Reciepient");
-        if (_to.isContract()) {
+    
+            if (_to.isContract()) {
             bytes4 returnValue = IERC721Receiver(_to).onERC721Received(msg.sender, _from,_tokenId, _data);
-            require(returnValue ==0x150b7a02, "invalid Reciepeint"); // bytes4(keccak256("onERC721Received(address,uint256,bytes)"))
+            require(returnValue ==0x150b7a02, "invalid Reciepeint"); // bytes4(keccak256("onERC721Received(address,uint256,bytes)")) 
             _transfer(_to,_tokenId);
         }
 
