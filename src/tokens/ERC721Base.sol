@@ -88,12 +88,13 @@ import "../utils/Address.sol";
     
     function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory _data) public OKTranfer(_tokenId) OKNFT(_tokenId){
         require(_to != address(0), "invalid Reciepient");
-    
-            if (_to.isContract()) {
+            
+        if (_to.isContract()) {
             bytes4 returnValue = IERC721Receiver(_to).onERC721Received(msg.sender, _from,_tokenId, _data);
             require(returnValue ==0x150b7a02, "invalid Reciepeint"); // bytes4(keccak256("onERC721Received(address,uint256,bytes)")) 
-            _transfer(_to,_tokenId);
+            
         }
+        _transfer(_to,_tokenId);
 
     }
 

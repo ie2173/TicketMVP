@@ -4,7 +4,8 @@ pragma solidity ^0.8.20;
 import "lib/forge-std/src/Test.sol";
 import "src/tokens/ERC721Base.sol";
 import 'src/interfaces/IERC721.sol';
-import 'src/interfaces/IERC721MEta.sol';
+import 'src/interfaces/IERC721Receiver.sol';
+import 'src/utils/ERC165.sol';
 
 
 contract NFTToken is ERC721Base {
@@ -22,11 +23,42 @@ contract NFTToken is ERC721Base {
      } 
 }
 
+contract NFTWALLETCONTRACT is IERC721Receiver {
+   function onERC721Received(
+      address _operator,
+      address _from,
+      uint256 _tokenId,
+      bytes calldata _data
+   ) public pure returns(bytes4){
+      return 0x150b7a02;
+   }
 
-contract CounterTest is Test {
+   function returnAddress() public view returns(address){ 
+      return address(this);
+   }
+}
+
+contract INVALIDNFTCONTRACT {
+   function onERC721Received(
+      address _operator,
+      address _from,
+      uint256 _tokenId,
+      bytes calldata _data
+   ) public pure returns(bytes4){
+      return 0xFFFFFFFF;
+   }
+
+   function returnAddress() public view returns(address) {
+      return address(this);
+   }
+}
+
+
+contract ERC721Test is Test {
    
     NFTToken public ERC721;
-    ERC721Base public ERC721BASE;
+    NFTWALLETCONTRACT public NFTCONTRACT;
+    INVALIDNFTCONTRACT public INVALIDCONTRACT;
     string public NFTNAME = "DEMO";
     string public NFTSYMBOL = "DEMO";
     address public EOA1 = address(0x34);
@@ -40,20 +72,28 @@ contract CounterTest is Test {
 
     function setUp() public {
        ERC721  = new NFTToken(NFTNAME, NFTSYMBOL);
+
         
     }
 
     function testERC165() public {
       bytes4 IERC165InterfaceId = 0x01ffc9a7;
       // ERC 165 interface ID code for openzeppelin ERC721 Contracts.
-      bytes4 IERC721InterfaceId = 0x80ac58cd;
+      //Assert correct Interface ID's
+      bytes4 IERC721InterfaceId = type(IERC721).interfaceId;
+      bytes4 IERC721Id = 0x80ac58cd;
+      assertEq(IERC721InterfaceId, IERC721Id);
       bytes4 IERC721MetaInterfaceId = type(IERC721Metadata).interfaceId;
+      bytes4 ERC721MetaID = 0x5b5e139f;
+      assertEq(IERC721MetaInterfaceId, ERC721MetaID);
       bool  IERC165Result = ERC721.supportsInterface(IERC165InterfaceId);
-      assertEq(IERC165Result, true);
+      assertTrue(IERC165Result);
       bool IERC721Result = ERC721.supportsInterface(IERC721InterfaceId);
-      assertEq(IERC721Result, true);
+      assertTrue(IERC721Result);
       bool IERC721MetaResult = ERC721.supportsInterface(IERC721MetaInterfaceId);
-      assertEq(IERC721MetaResult, true); 
+      assertTrue(IERC721MetaResult); 
+      
+      
       
     }
 
@@ -137,13 +177,32 @@ contract CounterTest is Test {
 
       }
 
-     // function testSafeTransferFrom() public {
-       //  vm.startPrank(EOA1);
-        // ERC721.mint(EOA1);
-        // ERC721.safeTransferFrom(EOA1, EOA2, 0, "");
-         //address sTransferResult = ERC721.ownerOf(0);
-         //assertEq(sTransferResult,EOA2);
-      //}
+      function testSafeTransferFrom() public {
+         //Assert EOA contract transfers
+         vm.startPrank(EOA1);
+         ERC721.mint(EOA1);
+         ERC721.safeTransferFrom(EOA1, EOA2, 0, "");
+         address sTransferResult = ERC721.ownerOf(0);
+         assertEq(sTransferResult,EOA2);
+         // Assert Valid Contract accepts transfer
+          NFTCONTRACT =  new NFTWALLETCONTRACT();
+          address nftContractAddress = NFTCONTRACT.returnAddress();
+         vm.startPrank(EOA2);
+         ERC721.safeTransferFrom(EOA2, nftContractAddress, 0);
+         sTransferResult = ERC721.ownerOf(0);
+         assertEq(sTransferResult, nftContractAddress);
+
+      }
+
+      function testSafeTransferFromReverts() public {
+         //Assert SafeTransferFrom to revert after sending to invalid contract
+         vm.startPrank(EOA1);
+         ERC721.mint(EOA1);
+         INVALIDCONTRACT = new INVALIDNFTCONTRACT();
+         address invalidcontract = INVALIDCONTRACT.returnAddress();
+         vm.expectRevert("invalid Reciepeint");
+         ERC721.safeTransferFrom(EOA1, invalidcontract, 0);
+      }
 
       function testTransferFrom() public {
          //Assert Transfrom from Owner to New Owner
@@ -176,10 +235,12 @@ contract CounterTest is Test {
       }
 
       function testTransferFromRevert() public {
+         //Assert Transfer Reverts when unauthorized user tries to transfer another token
          vm.startPrank(EOA2);
          ERC721.mint(EOA1);
          vm.expectRevert("Unauthorized User");
          ERC721.transferFrom(EOA2, EOA2, 0);
+         // Assert From input must be owner NFT.
          vm.startPrank(EOA1);
          vm.expectRevert("From input Must be NFT Owner.");
          ERC721.transferFrom(address(0x1), EOA2, 0);
