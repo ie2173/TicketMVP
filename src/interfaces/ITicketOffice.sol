@@ -16,7 +16,8 @@ interface ITicketOffice {
     //return address for event
     function getAddress(uint256 _eventID) external returns (address);
 
-    
+    //Get ownerof NFT.
+    function getNFTBalance(address _NFTAddress, address _ownerAddress) external returns(bool);
     
 
 
@@ -29,11 +30,20 @@ interface ITicketOffice {
     function CreateTicketEvent(string memory name, string memory symbol, address treasuryAddress ) external  returns (address);
 
 
-    // allows user to purchase a ticket, they pay the fee and 
-    // 
+    // allows user to purchase a ticket, they pay the fee and mint an NFT ticket send to address
+    // EMIT purchase
+    //Payable with Eth
     
+    
+function PurchaseTicket(uint256 _EventID) external;
 
-    
+//Purchase Ticket, but with USDC
+function PurchaseTicketWithUSDC(uint256 _EventId) external;
+
+    // Condition to see if user gets free NFT due to condition.
+    // If user redeems a ticket, switch a map variable to mark address redeemed.
+    // mints ticket and sends to user.
+    function RedeemTicket(uint _EventId) external;
 
 
 }
