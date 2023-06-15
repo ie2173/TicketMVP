@@ -15,9 +15,15 @@ interface ITicketOffice {
 
     //return address for event
     function getAddress(uint256 _eventID) external returns (address);
+    
+    // Get Event Price
+    function getEventDetails(uint256 _eventId) external returns (uint256);
+
 
     //Get ownerof NFT.
     function getNFTBalance(address _NFTAddress, address _ownerAddress) external returns(bool);
+
+
     
 
 
