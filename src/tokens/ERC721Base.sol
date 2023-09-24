@@ -10,8 +10,9 @@ import "../utils/Address.sol";
  contract ERC721Base is IERC721, IERC721Metadata, ERC165 {
     using AddressUtils for address;
 
-    string internal _name;
-    string internal _symbol;
+    string internal __name;
+    string internal __symbol;
+    string internal __baseURL;
     mapping(uint256 => address) public owners;
     mapping(address => uint256) public balances;
     mapping(uint256 => address) tokenApprovals;
@@ -48,12 +49,16 @@ import "../utils/Address.sol";
     }
    
    function name() public view returns(string memory){
-    return _name;
+    return __name;
 
    }
 
    function symbol() public view returns(string memory) {
-    return _symbol;
+    return __symbol;
+   }
+
+   function baseURL() internal view returns (string memory) {
+    return __baseURL;
    }
 
    function balanceOf( address _owner) public view returns(uint256) {
@@ -62,18 +67,13 @@ import "../utils/Address.sol";
     }
 
     function ownerOf (uint256 _tokenID) public view returns(address) {
-         require (owners[_tokenID] != address(0), "Token Burned" );
+         require (owners[_tokenID] != address(0), "Token Does Not Exist" );
          return owners[_tokenID];
     }
 
-    function tokenURI (uint256 _tokenID) public pure returns(string memory) {
-        uint256 token = _tokenID;
-
-        if (token < 100) {
-        string memory  returnValue = "HELL YEAH WOO GO TEAM";
-        return returnValue ;}
-        string memory altreturnvalue = "HELL YAH WOO WE DID IT.";
-        return altreturnvalue; // Update this to add concert art, if applicable
+    function tokenURI (uint256 _tokenID) public view returns(string memory) {
+        require(owners[_tokenID] != address(0),"Token Does Not Exist");
+         return string(abi.encode(_tokenID));
     }
 
     function approve( address _to, uint256 _tokenID) public OkApproval(_tokenID) {

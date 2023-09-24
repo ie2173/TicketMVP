@@ -12,9 +12,10 @@ contract NFTToken is ERC721Base {
      
      uint256 public TOKEN_ID = 0;
 
-     constructor(string memory __name, string memory __symbol) {
-        _name = __name;
-        _symbol = __symbol;
+     constructor(string memory _name, string memory _symbol, string memory _baseURL) {
+        __name = _name;
+        __symbol = _symbol;
+        __baseURL = _baseURL;
      } 
      
      function mint(address _to) public {
@@ -61,6 +62,7 @@ contract ERC721Test is Test {
     INVALIDNFTCONTRACT public INVALIDCONTRACT;
     string public NFTNAME = "DEMO";
     string public NFTSYMBOL = "DEMO";
+    string public NFTBASEURL = "00000";
     address public EOA1 = address(0x34);
     address public EOA2 = address(0x56);
 
@@ -71,7 +73,7 @@ contract ERC721Test is Test {
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
     function setUp() public {
-       ERC721  = new NFTToken(NFTNAME, NFTSYMBOL);
+       ERC721  = new NFTToken(NFTNAME, NFTSYMBOL, NFTBASEURL);
 
         
     }
@@ -137,20 +139,21 @@ contract ERC721Test is Test {
          address ownerResult = ERC721.ownerOf(0);
          assertEq(EOA1, ownerResult);
          //Assert Non-Minted Tokens reverts with correct message
-         vm.expectRevert("Token Burned");
+         vm.expectRevert("Token Does Not Exist");
          ERC721.ownerOf(1);
          
       }
 
       function testTokenURI() public {
+         ERC721.mint(EOA1);
          //Assert correct string return for token 1
-            string memory expectedString = "HELL YEAH WOO GO TEAM";
-            string memory stringResults = ERC721.tokenURI(1);
-            assertEq(expectedString, stringResults);
-         //Assert correct string return for token 1000
-         expectedString = "HELL YAH WOO WE DID IT.";
-         stringResults = ERC721.tokenURI(1000);
+         string memory expectedString = "0";
+         string memory stringResults = ERC721.tokenURI(0);
          assertEq(expectedString, stringResults);
+         //Assert Unminted Token Reverts
+         vm.expectRevert("Token Does Not Exist");
+         ERC721.tokenURI(1000);
+         
       }
 
       function testApprove() public {

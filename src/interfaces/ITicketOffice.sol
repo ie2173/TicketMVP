@@ -2,26 +2,30 @@
 pragma solidity  ^0.8.20;
 
 interface ITicketOffice {
+
+    event EventCreated(string name, address ContractAddress);
     event TicketPurchased(address indexed _purchaser, uint256 indexed _tokenId);
 
     //return name of contract: 
     function name() external returns (string memory );
 
     //return event name by id
-    function getEventName(uint256 _eventID) external returns (string memory);
+    function getEventName(uint256 _EventID) external returns (string memory);
 
     //return event owner address 
-    function getEventOwner(uint256 _eventID) external returns (address);
+    function getEventOwner(uint256 _EventID) external returns (address);
 
     //return address for event
-    function getAddress(uint256 _eventID) external returns (address);
+    function getAddress(uint256 _EventID) external returns (address);
     
     // Get Event Price
-    function getEventDetails(uint256 _eventId) external returns (uint256);
+    function getEventPrice(uint256 _EventId) external returns (uint256);
 
+    // get Event Capacity
+    function getEventCapacity(uint256 _EventId) external returns (uint256);
 
-    //Get ownerof NFT.
-    function getNFTBalance(address _NFTAddress, address _ownerAddress) external returns(bool);
+    //Get ticket Balance of Owner
+    function getNFTBalance(uint256 _EventId, address _ownerAddress) external returns(uint256);
 
 
     
@@ -49,7 +53,12 @@ function PurchaseTicketWithUSDC(uint256 _EventId) external;
     // Condition to see if user gets free NFT due to condition.
     // If user redeems a ticket, switch a map variable to mark address redeemed.
     // mints ticket and sends to user.
-    function RedeemTicket(uint _EventId) external;
+    function RedeemTicket(uint256 _EventId) external;
+
+    //verify that the user has tickets to the event
+    function verifyUserTicket(uint256 _EventId,  address _User ) external returns(bool);
+
+    function issueRefund() external;
 
 
 }
