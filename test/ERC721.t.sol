@@ -62,7 +62,7 @@ contract ERC721Test is Test {
     INVALIDNFTCONTRACT public INVALIDCONTRACT;
     string public NFTNAME = "DEMO";
     string public NFTSYMBOL = "DEMO";
-    string public NFTBASEURL = "00000";
+    string public NFTBASEURL = "MONGOOSE";
     address public EOA1 = address(0x34);
     address public EOA2 = address(0x56);
 
@@ -147,8 +147,9 @@ contract ERC721Test is Test {
       function testTokenURI() public {
          ERC721.mint(EOA1);
          //Assert correct string return for token 1
-         string memory expectedString = "0";
+         string memory expectedString = "MONGOOSE/0.json";
          string memory stringResults = ERC721.tokenURI(0);
+         console.log("results:",expectedString,stringResults);
          assertEq(expectedString, stringResults);
          //Assert Unminted Token Reverts
          vm.expectRevert("Token Does Not Exist");
@@ -174,7 +175,7 @@ contract ERC721Test is Test {
       function testApproveRevert() public {
          vm.startPrank(EOA2);
          ERC721.mint(EOA1);
-         vm.expectRevert("Unauthorized User");
+         vm.expectRevert("Unauthorized User!");
          ERC721.approve(EOA2, 0);
 
 

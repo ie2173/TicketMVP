@@ -6,9 +6,11 @@ import "../interfaces/IERC721MEta.sol";
 import "../interfaces/IERC721Receiver.sol";
 import "../utils/ERC165.sol";
 import "../utils/Address.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
  contract ERC721Base is IERC721, IERC721Metadata, ERC165 {
     using AddressUtils for address;
+    using Strings for string;
 
     string internal __name;
     string internal __symbol;
@@ -22,7 +24,7 @@ import "../utils/Address.sol";
     
     modifier OkApproval(uint256 _tokenID) {
         
-        require(owners[_tokenID] == msg.sender || operatorApprovals[owners[_tokenID]][msg.sender], "Unauthorized User");
+        require(owners[_tokenID] == msg.sender || operatorApprovals[owners[_tokenID]][msg.sender], "Unauthorized User!");
 
         _;
     }
@@ -73,7 +75,7 @@ import "../utils/Address.sol";
 
     function tokenURI (uint256 _tokenID) public view returns(string memory) {
         require(owners[_tokenID] != address(0),"Token Does Not Exist");
-         return string(abi.encode(_tokenID));
+         return string(abi.encodePacked(baseURL(),"/",Strings.toString(_tokenID),".json"));
     }
 
     function approve( address _to, uint256 _tokenID) public OkApproval(_tokenID) {
