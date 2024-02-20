@@ -3,62 +3,83 @@ pragma solidity  ^0.8.20;
 
 interface ITicketOffice {
 
-    event EventCreated(string name, address ContractAddress);
-    event TicketPurchased(address indexed _purchaser, uint256 indexed _tokenId);
+    event Event(uint256 indexed eventIdCounter, string name, address contractAddress, uint256 generalPrice,uint256 vipPrice, uint256 generalSupply,
+    uint256 vipSupply , uint256 eventDate, string concertLocation, string[] performers);
 
-    //return name of contract: 
+    event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 quantity);
+
+    // View Functions 
     function name() external returns (string memory );
 
-    //return event name by id
-    function getEventName(uint256 _EventID) external returns (string memory);
+    function contractOwner() external returns (address);
 
-    //return event owner address 
-    function getEventOwner(uint256 _EventID) external returns (address);
 
-    //return address for event
-    function getAddress(uint256 _EventID) external returns (address);
+    function getEventName(uint256 eventId) external returns (string memory);
+
+    function isEventOwner(uint256 eventId, address userAddress) external returns (bool);
+
+    function getAddress(uint256 eventId) external returns (address);
+
+    function getEventGeneralPrice(uint256 eventId) external returns (uint256);
+
+    function getEventVipPrice(uint256 eventId) external returns(uint256);
+
+    function getEventGeneralCapacity(uint256 eventId) external returns(uint256);
+
+    function getEventVipCapacity(uint256 eventId) external returns (uint256);
+
+    function getEventDate(uint256 eventId) external returns (uint256);
+
+    function getEventLocation(uint256 eventId) external returns (string memory);
+
+    function getEventPerformers(uint256 eventId) external returns (string[] memory);
+
+    function ticketHolderBalance(uint256 eventId, address user) external returns (uint256[] memory);
     
-    // Get Event Price
-    function getEventPrice(uint256 _EventId) external returns (uint256);
+    function getEventOwner(uint256 eventId) external returns(address);
 
-    // get Event Capacity
-    function getEventCapacity(uint256 _EventId) external returns (uint256);
+    function isTicketHolder(uint256 eventId, address user) external returns (bool);
 
-    //Get ticket Balance of Owner
-    function getNFTBalance(uint256 _EventId, address _ownerAddress) external returns(uint256);
+    function issuedComp(uint256 eventId, address user) external returns (bool);
 
+    // User Functions
+    
+    function createEvent(string memory newName, string memory baseURL, uint256 generalSupply, uint256 vipSupply, uint256 generalPrice, uint256 vipPrice, uint256 eventDate, string memory eventLocation, string[] memory performers) external;
+
+    function mintTicketGeneral(uint256 eventId, uint256 quantity, address to) external;
+
+    function mintTicketVip(uint256 eventId, uint256 quantity, address to) external;
+
+    function redeemTicket(uint256 eventId) external;
+
+    function issueRefund(uint256 eventId, uint256 tokenId) external;
+
+ // Admin Functions
+
+    function lockEvent(uint256 eventId) external;
+
+    function unLockEvent(uint256 eventId) external;
+
+    function approveTreasurer(uint256 eventId, address treasurer) external returns (address);
+
+    function compOne(uint256 eventId, address user) external;
+
+    function compMany(uint256 eventId, address[] memory users ) external;
+
+    function addPerformers (uint256 eventId, string memory newPerformer) external returns(string[] memory);
+
+    function removePerformers(uint256 eventId, uint256 index) external returns(string[] memory);
+
+    function changeLocation(uint256 eventId, string memory newLocation) external returns (string memory);
+
+    function changeEventDate(uint256 eventId, uint256 newDate) external returns (uint256);
+
+    function withdrawFunds(uint256 eventId) external; 
 
     
 
 
 
-    //creates an event related to tickets for a specific concert/event
-    //Mint NFT
-    //Emit event containing event name, price, nft address, string containing the event photo, if applicable
-    //Grants msg.sender operator property of the NFT. and admin authorization on this contract
-    //sets reciepient of the funds to receive it after event ends.
-    function CreateTicketEvent(string memory name, string memory symbol, address treasuryAddress ) external  returns (address);
-
-
-    // allows user to purchase a ticket, they pay the fee and mint an NFT ticket send to address
-    // EMIT purchase
-    //Payable with Eth
     
-    
-function PurchaseTicket(uint256 _EventID) external;
-
-//Purchase Ticket, but with USDC
-function PurchaseTicketWithUSDC(uint256 _EventId) external;
-
-    // Condition to see if user gets free NFT due to condition.
-    // If user redeems a ticket, switch a map variable to mark address redeemed.
-    // mints ticket and sends to user.
-    function RedeemTicket(uint256 _EventId) external;
-
-    //verify that the user has tickets to the event
-    function verifyUserTicket(uint256 _EventId,  address _User ) external returns(bool);
-
-    function issueRefund() external;
-
 
 }

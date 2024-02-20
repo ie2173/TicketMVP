@@ -2,37 +2,70 @@
 pragma solidity  ^0.8.20;
 
 import "src/interfaces/IERC20.sol";
-import "src/interfaces/IERC721.sol";
-import "src/tokens/ERC721Base.sol";
+import "src/interfaces/IERC1155.sol";
+import "src/tokens/ERC1155Base.sol";
 import "src/interfaces/ITicketOffice.sol";
 
-contract ERC721Tickets is ERC721Base {
+contract ERC1155Token is ERC1155 { 
     address public owner;
-    uint256 public totalSupply;
-    uint256 public tokenId = 0;
+    string public name;
+    uint256 public totalGeneralSupply;
+    uint256 public totalVipSupply;
+    uint256 public generalTokenId = 0;
+    uint256 public vipTokenId = 0;
+    
 
-    constructor(string memory _name, string memory _symbol, string memory _baseURL, uint256 _totalSupply) {
-        __name = _name;
-        __symbol = _symbol;
-        __baseURL = _baseURL;
-        totalSupply = _totalSupply;
+    constructor(string memory newUri, string memory newName, uint256 generalSupply, uint256 vipSupply)  {
+
         owner = msg.sender;
-
-        }
-
-    function mint(address _to) public {
-        require(msg.sender == owner, "Required to use Cheers Finance ticket booth to create ticket");
-        require(tokenId < totalSupply, "Event Sold Out");
-        _mint(_to, tokenId);
-        tokenId++;
+        name = newName;
+        totalGeneralSupply = generalSupply;
+        totalVipSupply = vipSupply;
+        _setBaseURI(newUri); 
     }
 
+    function mintGeneralTicket(address to,uint256 amount) public {
+        require(msg.sender == owner, "Required to use Cheers Finance to Mint Tickets");
+        generalTokenId += amount;
+        require(generalTokenId < totalGeneralSupply  + 1 , "Tickets Sold Out");
+        _mint(to, 0, amount, "");
+    }
+
+    function mintVipTicket(address to, uint256 amount) public {
+        require(msg.sender == owner, "Required to use Cheers Finance to Mint Tickets");
+        vipTokenId += amount;
+        require(vipTokenId <= totalVipSupply, "Tickets Sold Out");
+        _mint(to, 1, amount,"");
+    }
+
+    function mintBatchTickets(address to, uint256[] memory ids, uint256[] memory amounts) public {
+        require(msg.sender == owner, "Required to use Cheers Finance to mint tickets");
+        require(ids.length == amounts.length,"Ids and Amounts must be equal");
+        for (uint256 i; i < ids.length; ++i) {
+            if (ids[i] == 0) {
+                require(generalTokenId + amounts[i] <= totalGeneralSupply,"General Tickets are over capacity");
+
+            } 
+            if (ids[i]==1){
+                require(vipTokenId + amounts[i] <= totalVipSupply, "Vip Tickets are over capacity");
+
+            }
+        }
+        _mintBatch(to, ids, amounts, "");
+    }
+
+    function burn(address from, uint256 id, uint256 value) public {
+        require(msg.sender == owner, "Required to use Cheers Finance to mint tickets");
+        _burn(from, id, value);
+    }
 }
 
-contract TicketOffice {
+contract TicketOffice is ITicketOffice{
     struct TicketDetails {
-        uint256 price;
-        uint256 totalSupply;
+        uint256 generalPrice;
+        uint256 vipPrice;
+        uint256 generalSupply;
+        uint256 vipSupply;
         string name;
         address owner;
         uint256 eventDate;
@@ -40,35 +73,40 @@ contract TicketOffice {
         string[] performers;
     }
     
-    IERC20 public USDC;
-    ERC721Tickets public ticketNft;
-    string internal __name;
-    address internal ContractOwner;
-    uint256 internal eventIdCounter = 0;
+    IERC20 internal _usdc;
+    string internal _name;
+    address internal _contractOwner;
+    uint256 internal _eventIdCounter = 0;
     mapping(uint256 => address) public eventTicketAddress;
     mapping(uint256 => mapping(address => bool)) public freeTicketVoucher;
     mapping(uint256 => TicketDetails) public eventDetails;
-    mapping(uint256 => uint256) public eventBalance;
+    mapping(uint256 => uint256) private eventBalance;
     mapping(uint256 => address) public withdrawlApproval;
-    mapping(uint256 => bool) public EventLocked; 
-    bool public TicketOfficeOpen = true;
+    mapping(uint256 => bool) public eventLocked; 
+    bool public ticketOfficeOpen;
     
-    event EventCreated(string name, address ContractAddress);
+   
 
-    event TicketPurchased(string name, address ContractAddress, address ticketOwner);
+    
 
-    constructor(string memory  _name, address _USDCAddress) {
-        ContractOwner = msg.sender;
-        __name = _name;
-        USDC = IERC20(_USDCAddress);
-        TicketOfficeOpen = true;
+
+    constructor(string memory  __name, address usdcAddress) {
+        _contractOwner = msg.sender;
+        _name = __name;
+        _usdc = IERC20(usdcAddress);
+        ticketOfficeOpen = true;
 
     }
 
-    modifier okAdmin(uint256 _EventId) {
-        require(getEventOwner(_EventId) == msg.sender, "Unauthorized user");
+    modifier okAdmin(uint256 eventId) {
+        require(getEventOwner(eventId) == msg.sender || withdrawlApproval[eventId] == msg.sender , "Unauthorized user");
         _;
 
+    }
+
+    modifier openOffice() {
+        require(ticketOfficeOpen, "Ticket Office Closed");
+        _;
     }
 
     // Get name of Contract - check
@@ -96,169 +134,252 @@ contract TicketOffice {
     // Get is Ticket Holder - check
 
     function name() public view returns(string memory) {
-        return __name;
+        return _name;
     }
 
     function contractOwner() public view returns (address) {
-        return ContractOwner;
+        return _contractOwner;
     }
 
-    function createEvent(string memory _name, string memory _symbol, string calldata _baseURL, uint256 _totalSupply, uint256 _ticketPrice, uint256 _eventDate, string memory _eventLocation, string[] memory _performers) public {
-        require(TicketOfficeOpen, "Ticket Office is Closed");
-        ticketNft = new ERC721Tickets(_name,_symbol,_baseURL,_totalSupply);
+    function createEvent(string memory newName, string memory baseURL, uint256 generalSupply, uint256 vipSupply, uint256 generalPrice,uint256 vipPrice, uint256 eventDate, string memory eventLocation, string[] memory performers) public openOffice(){
+
+        require(block.timestamp + 86400 * 3 < eventDate, "Event Must be created at least 3 days in advance");
+        
+        ERC1155Token ticketNft = new ERC1155Token(baseURL, newName, generalSupply, vipSupply);
         address eventAddress = address(ticketNft);
-        eventTicketAddress[eventIdCounter] = eventAddress;
-        eventDetails[eventIdCounter] = TicketDetails(_ticketPrice,_totalSupply,_name,msg.sender,_eventDate,_eventLocation,_performers);
-        emit EventCreated(_name, eventAddress);
-        eventIdCounter++;
+        require(eventAddress != address(0));
+        eventTicketAddress[_eventIdCounter] = eventAddress;
+        eventDetails[_eventIdCounter] = TicketDetails(generalPrice,vipPrice,generalSupply,vipSupply,newName,msg.sender,eventDate,eventLocation,performers);
+        withdrawlApproval[_eventIdCounter] = msg.sender;
+        emit Event(_eventIdCounter, newName,eventAddress,  generalPrice, vipPrice, generalSupply, vipSupply, eventDate, eventLocation, performers);
+        _eventIdCounter++;
+
 
     }
 
-    function getEventName(uint256 _EventId) public view returns (string memory) {
-        return eventDetails[_EventId].name;
+    function getEventName(uint256 eventId) public view returns (string memory) {
+        return eventDetails[eventId].name;
     }
 
-    function isEventOwner(uint256 _EventId, address _address) public view returns (bool) {
-        return eventDetails[_EventId].owner == _address ? true : false;
+    function isEventOwner(uint256 eventId, address userAddress) public view returns (bool) {
+        return eventDetails[eventId].owner == userAddress ? true : false;
     }
 
-    function getAddress(uint256 _EventId) public view returns(address) {
-        return eventTicketAddress[_EventId];
-
-    }
-
-    function getEventPrice(uint256 _EventId) public view returns (uint256) {
-        return eventDetails[_EventId].price;
-    }
-
-    function getEventCapacity(uint256 _EventId) public view returns (uint256) {
-        return eventDetails[_EventId].totalSupply;
+    function getAddress(uint256 eventId) public view returns(address) {
+        return eventTicketAddress[eventId];
 
     }
 
-    function getEventDate(uint256 _EventId) public view returns (uint256) {
-        return eventDetails[_EventId].eventDate;
+    function getEventGeneralPrice(uint256 eventId) public view returns (uint256) {
+        return eventDetails[eventId].generalPrice;
     }
 
-    function getEventLocation(uint256 _EventId) public view returns (string memory ) {
-        return eventDetails[_EventId].concertLocation;
+    function getEventVipPrice(uint256 eventId) public view returns(uint256) {
+        return eventDetails[eventId].vipPrice;
     }
 
-    function getEventPerformers(uint256 _EventId) public view returns (string[] memory ) {
-        return eventDetails[_EventId].performers;
+    function getEventGeneralCapacity(uint256 eventId) public view returns (uint256) {
+        return eventDetails[eventId].generalSupply;
+
     }
 
-    function isTicketOwner (uint256 _EventId, address _User) public view returns (uint256) {
-        address ID = eventTicketAddress[_EventId];
-        return ERC721Tickets(ID).balanceOf(_User);
+    function getEventVipCapacity(uint256 eventId) public view returns(uint256) {
+        return eventDetails[eventId].vipSupply;
     }
 
-    function getEventOwner(uint256 _EventId) public view returns(address) {
-            return eventDetails[_EventId].owner;
+    function getEventDate(uint256 eventId) public view returns (uint256) {
+        return eventDetails[eventId].eventDate;
+    }
+
+    function getEventLocation(uint256 eventId) public view returns (string memory ) {
+        return eventDetails[eventId].concertLocation;
+    }
+
+    function getEventPerformers(uint256 eventId) public view returns (string[] memory ) {
+        return eventDetails[eventId].performers;
+    }
+
+    function ticketHolderBalance (uint256 eventId, address user) public view returns (uint256[] memory) {
+        address[] memory accountArray = new address[](2);
+        uint256[] memory idArray = new uint256[](2);
+        accountArray[0] = user;
+        accountArray[1] = user;
+        idArray[0] = 0;
+        idArray[1] = 1; 
+        address iD = eventTicketAddress[eventId];
+         uint256[] memory returnValue = ERC1155Token(iD).balanceOfBatch(accountArray,idArray);
+         return returnValue;
+    }
+
+    function getEventOwner(uint256 eventId) public view returns(address) {
+            return eventDetails[eventId].owner;
         }
-    function getTicketBalance(uint256 _EventId, address _ownerAddress) public view returns(uint256) {
-        address ID = eventTicketAddress[_EventId];
-        return ERC721Tickets(ID).balanceOf(_ownerAddress);
+
+    function isTicketHolder(uint256 eventId, address ownerAddress) public view returns(bool) {
+        address iD = eventTicketAddress[eventId];
+        return ERC1155(iD).balanceOf(ownerAddress,0) != 0 || ERC1155(iD).balanceOf(ownerAddress,1) != 0;
     }
 
 
-    function mintTicket(uint256 _EventId, uint256 _quantity, address _to) public {
-        require(!EventLocked[_EventId], "Concert Event is Frozen" );
-        require(TicketOfficeOpen, "Ticket Office is Closed");
-        uint256 grossCost = getEventPrice(_EventId * _quantity);
-        require(USDC.balanceOf(msg.sender) >= grossCost,"Insufficient Funds");
-        require(eventTicketAddress[_EventId] != address(0), "Event Does Not Exist");
-        eventBalance[_EventId] += grossCost;
-        USDC.approve(address(this), grossCost);
-        (bool success) = USDC.transferFrom(msg.sender, address(this), grossCost);
-        require(success, "USDC Transfer Failed");
-        for (uint256 i=0; i < _quantity; i++) {
-            ERC721Tickets(eventTicketAddress[_EventId]).mint(_to);
-        }
+    function mintTicketGeneral(uint256 eventId, uint256 quantity,  address to) public openOffice() {
+        require(eventTicketAddress[eventId] != address(0), "Event Does Not Exist");
+        require(!eventLocked[eventId], "Concert Event is Frozen" );
+        address id = eventTicketAddress[eventId];
+        uint256 grossCost = getEventGeneralPrice(eventId) * quantity;
+        require(_usdc.balanceOf(msg.sender) >= grossCost,"Insufficient Funds HIT FUNCTION CHECK");
+        _usdc.transferFrom(msg.sender, address(this), grossCost);
+        eventBalance[eventId] += grossCost;
+        ERC1155Token(id).mintGeneralTicket(to,quantity);
+        
+        emit TicketPurchased(to, eventId, quantity);
+        
     }
 
-    function withdrawFunds(uint256 _EventId) public {
-        require(block.timestamp + 86400 >= eventDetails[_EventId].eventDate, "Withdraw must be one day after Event");
-        if (EventLocked[_EventId]) {
-            // Refund Event Here
+    function mintTicketVip(uint256 eventId, uint256 quantity,  address to) public openOffice() {
+        require(eventTicketAddress[eventId] != address(0), "Event Does Not Exist");
+        require(!eventLocked[eventId], "Concert Event is Frozen" );
+        address id = eventTicketAddress[eventId];
+        uint256 grossCost = getEventVipPrice(eventId) * quantity;
+        require(_usdc.balanceOf(msg.sender) >= grossCost,"Insufficient Funds HIT FUNCTION CHECK");
+        _usdc.transferFrom(msg.sender, address(this), grossCost);
+        eventBalance[eventId] += grossCost;
+        ERC1155Token(id).mintVipTicket(to,quantity);
+        emit TicketPurchased(to, eventId, 1);
+        
+    }
+
+    function issueRefund(uint256 eventId, uint256 tokenId) public {
+        require(eventLocked[eventId], "Ineligible for Refund");
+        address id = eventTicketAddress[eventId];
+        uint256 userBalance = ERC1155Token(id).balanceOf(msg.sender, tokenId);
+        require(userBalance > 0,"Insufficient Balance");
+        ERC1155Token(id).burn(msg.sender, tokenId, 1);
+        if (tokenId == 1) {
+           eventBalance[eventId] -= eventDetails[eventId].vipPrice; 
+           uint256 userBalanceAfter = ERC1155Token(id).balanceOf(msg.sender, tokenId);
+        require(userBalanceAfter == userBalance - 1, "Token Burn Failed" );
+        _usdc.transfer(msg.sender, eventDetails[eventId].vipPrice);
         }
-        require(msg.sender == eventDetails[_EventId].owner ||  msg.sender == withdrawlApproval[_EventId], "Unauthorized Access");
-        USDC.transfer(eventDetails[_EventId].owner, eventBalance[_EventId]);
+        else {
+            eventBalance[eventId] -= eventDetails[eventId].generalPrice; 
+           uint256 userBalanceAfter = ERC1155Token(id).balanceOf(msg.sender, tokenId);
+        require(userBalanceAfter == userBalance - 1, "Token Burn Failed" );
+        _usdc.transfer(msg.sender, eventDetails[eventId].generalPrice);
+
+        }
+        
+        
+
+    }
+
+    function withdrawFunds(uint256 eventId) public {
+        require(block.timestamp - 86400 >= eventDetails[eventId].eventDate, "Withdraw must be one day after Event");
+        if (eventLocked[eventId]) {
+            revert("Funds are locked for refunds");
+        }
+        require(msg.sender == eventDetails[eventId].owner ||  msg.sender == withdrawlApproval[eventId], "Unauthorized Access");
+        uint256 payOut= eventBalance[eventId] * 95 / 100;
+        _usdc.transfer(_contractOwner, eventBalance[eventId] * 5 / 100);
+        _usdc.transfer(eventDetails[eventId].owner, payOut);
+        eventBalance[eventId] = 0;
+        eventLocked[eventId] = true;
+        
 
     }
     
 
-    function RedeemTicket(uint256 _EventId) public {
-        require(TicketOfficeOpen, "Ticket Office is Closed");
-        require(freeTicketVoucher[_EventId][msg.sender] == true, "Not Qualified to Redeem Ticket");
-        freeTicketVoucher[_EventId][msg.sender] = false;
-        ERC721Tickets(getAddress(_EventId)).mint(msg.sender);
+    function redeemTicket(uint256 eventId) public {
+        require(freeTicketVoucher[eventId][msg.sender], "Ineligible for Comped Ticket");
+        address id = eventTicketAddress[eventId];
+        freeTicketVoucher[eventId][msg.sender] = false;
+        ERC1155Token(id).mintGeneralTicket(msg.sender,1);
     }
 
-    function compOne(uint256 _EventId, address _address) public okAdmin(_EventId) {
-        freeTicketVoucher[_EventId][_address] = true;
+    function compOne(uint256 eventId, address user) public okAdmin(eventId) {
+        freeTicketVoucher[eventId][user] = true;
 
     }
 
-    function compMany(uint256 _EventId, address[] memory _addresses) public okAdmin(_EventId) {
-            for (uint i = 0; i < _addresses.length; i++) {
-                freeTicketVoucher[_EventId][_addresses[i]] = true;
+    function compMany(uint256 eventId, address[] memory users) public okAdmin(eventId) {
+            for (uint i = 0; i < users.length; i++) {
+                freeTicketVoucher[eventId][users[i]] = true;
             }
     }
 
-    function _callRefund(uint256 _EventId) public {
-        require(ContractOwner == msg.sender, "Unauthorized Access");
-        require(EventLocked[_EventId] == true, "Event Not Eligible for Refund");
-        address ID = eventTicketAddress[_EventId];
-        uint256 Tickets = ERC721Tickets(ID).tokenId();
-        for (uint i = 0; i < Tickets; i++) {
-            USDC.transfer(ERC721Tickets(ID).ownerOf(i), eventDetails[_EventId].price);
-        }
+    
 
+    function lockEvent(uint256 eventId) public   {
+        require(_contractOwner == msg.sender, "Unauthorized Access");
+        eventLocked[eventId] = true;
 
     }
 
-    function lockEvent(uint256 _EventId) public  {
-        require(ContractOwner == msg.sender, "Unauthorized Access");
-        EventLocked[_EventId] = true;
-
+    function unLockEvent(uint256 eventId) public {
+        require(_contractOwner == msg.sender, "Unauthorized Access");
+        eventLocked[eventId] = false;
     }
 
-    function unLockEvent(uint256 _EventId) public {
-        require(ContractOwner == msg.sender, "Unauthorized Access");
-        EventLocked[_EventId] = false;
-    }
-
-    function approveWithdrawl(uint256 _EventId, address _Treasurer) public okAdmin(_EventId) {
-        withdrawlApproval[_EventId] = _Treasurer;
+    function approveTreasurer(uint256 eventId, address treasurer) public okAdmin(eventId) returns(address){
+        withdrawlApproval[eventId] = treasurer;
+        return treasurer;
 
 
     }
 
     // Add Performers
-    function addPerformers (uint256 _EventId, string memory _NewPerformer) public okAdmin(_EventId){
-        eventDetails[_EventId].performers.push(_NewPerformer);
+    function addPerformers (uint256 eventId, string memory newPerformer) public okAdmin(eventId) returns(string[] memory){
+        
+        eventDetails[eventId].performers.push(newPerformer);
+        emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].generalPrice, eventDetails[eventId].vipPrice, eventDetails[eventId].generalSupply, eventDetails[eventId].vipSupply, eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers);
+        return eventDetails[eventId].performers;
 
+    }
+
+    function getTreasurer (uint256 eventId) public view returns (address) {
+        return withdrawlApproval[eventId];
+    }
+
+    function getEventFunds(uint256 eventId) public view returns (uint256) {
+        return eventBalance[eventId];
     }
 
     // Remove Performers
-    function removePerformers (uint256 _EventId, uint256 _index) public {
-        require(_index < eventDetails[_EventId].performers.length, "Out of bounds");
-        for (uint256 i = _index; i < eventDetails[_EventId].performers.length - 1; i++) {
-            eventDetails[_EventId].performers[i] = eventDetails[_EventId].performers[i + 1];
+    function removePerformers (uint256 eventId, uint256 _index) public okAdmin(eventId) returns(string[] memory) {
+        require(_index < eventDetails[eventId].performers.length, "Out of bounds");
+        for (uint256 i = _index; i < eventDetails[eventId].performers.length - 1; i++) {
+            eventDetails[eventId].performers[i] = eventDetails[eventId].performers[i + 1];
         }
-        eventDetails[_EventId].performers.pop();
+        eventDetails[eventId].performers.pop();
+        emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].generalPrice, eventDetails[eventId].vipPrice, eventDetails[eventId].generalSupply, eventDetails[eventId].vipSupply, eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers);
+        return eventDetails[eventId].performers;
     }
 
     // change Location
-    function changeLocation (uint256 _EventId, string memory _NewLocation) public {
-        eventDetails[_EventId].concertLocation = _NewLocation;
+    function changeLocation (uint256 eventId, string memory newLocation) public okAdmin(eventId) returns(string memory){
+        eventDetails[eventId].concertLocation = newLocation;
+        emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].generalPrice, eventDetails[eventId].vipPrice, eventDetails[eventId].generalSupply, eventDetails[eventId].vipSupply, eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers);
+        return eventDetails[eventId].concertLocation;
     }
 
     // close ticketOffice
     function closeTicketOffice() public {
-        require(ContractOwner == msg.sender, "Unauthorized Access");
-        TicketOfficeOpen = false;
+        require(_contractOwner == msg.sender, "Unauthorized Access");
+        ticketOfficeOpen = false;
+
+    }
+
+    function issuedComp(uint256 eventId, address user) public view returns(bool) {
+        return freeTicketVoucher[eventId][user];
+    }
+
+    function changeEventDate(uint256 eventId, uint256 newDate) public okAdmin(eventId) returns(uint256){
+        require(eventDetails[eventId].eventDate - 172800 >= block.timestamp, "Date change within Locked Period");
+
+        require(newDate > block.timestamp,"Invalid Date");
+
+        eventDetails[eventId].eventDate = newDate;
+        emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].generalPrice, eventDetails[eventId].vipPrice, eventDetails[eventId].generalSupply, eventDetails[eventId].vipSupply, eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers);
+        return newDate;
 
     }
 }
