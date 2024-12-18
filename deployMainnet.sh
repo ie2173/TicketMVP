@@ -1,0 +1,1 @@
+forge script script/TicketOffice.s.sol:TicketOfficeDeployScript  --account cheersFinance --rpc-url https://eth-mainnet.g.alchemy.com/v2/i7LrOHwHcpAi_xyIoN4TOZRMcG9j0nnI --broadcast

@@ -1,0 +1,1 @@
+cast send --account ${accountName} --rpc-url https://eth-sepolia.g.alchemy.com/v2/PCeUnACiFHmOit6YLq5AmvgWBlAB6nCr 0x005D5b119A46E8dD101726660251c87632723C96 "withdrawFunds(uint256)" "${eventId}"

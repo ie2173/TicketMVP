@@ -4,12 +4,12 @@ pragma solidity ^0.8.20;
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/StdUtils.sol";
 import "src/TicketOffice.sol";
-import "src/tokens/ERC721Base.sol";
 import "src/interfaces/IERC20.sol";
 
 contract TicketOfficeTest is Test {
 
     TicketOffice public ticketOffice;
+    ERC1155Token public ERC1155; 
     IERC20 public usdCoin;
     address public contractOwner;
     address public contractAddress;
@@ -43,29 +43,7 @@ contract TicketOfficeTest is Test {
         contractOwner = address(this);
         contractAddress = address(ticketOffice);
     }
-    // Get name of Contract - TEST COMPLETED
-    // Get owner of contract - TEST COMPLETED
-    // Create an Event - TEST COMPLETED
-    // get Event name - TEST COMPLETED
-    // Get Event Owner - TEST COMPLETED
-    // GET Event Address - TEST COMPLETED
-    // get Event Location - FUNCTION IN CONSTRUCTION
-    // get ticket price - FUNCTION IN CONSTRUCTION
-    // Get Totaly Supply - TEST COPLETED
-    // get Tickets Available - FUNCTION IN CONSTRUCTION
-    // Get Event Date - NEEDS TEST WRITTEN
-    // Get Performers - FUNCTION IN CONSTRUCTION
-    // create Ticket - FUNCTION IN CONSTRUCTION
-    // Stop Ticket Sales - FUNCTION IN CONSTRUCTION
-    // create Ticket Comp - NEEDS TESTS WRITTEN
-    // redeem ticket - NEEDS TEST WRITTEN
-    // issue refunds - FUNCTION IN CONSTRUCTION
-    // Change Performers - FUNCTION IN CONSTRUCTION
-        // Add Performers
-        // Remove Performers
-    // approve treasurer - FUNCTION IN CONSTRUCTION
-    // Withdraw Funds - FUNCTION IN CONSTRUCTION
-    // Get is Ticket Holder - NEEDS TEST WRITTEN
+    
 
     function testName() public {
         string memory result = ticketOffice.name();
@@ -82,8 +60,8 @@ contract TicketOfficeTest is Test {
         vm.startPrank(ownerWallet);
         vm.expectEmit();
         emit Event(0, name, 0x104fBc016F4bb334D775a19E8A6510109AC63E00,  genPrice, vPrice,  genSupply,
-     vSupply , eventDate, location, groups);
-     ticketOffice.createEvent(name, baseUrl, genSupply, vSupply, genPrice, vPrice, eventDate, location, groups);
+        vSupply , eventDate, location, groups);
+        ticketOffice.createEvent(name, baseUrl, genSupply, vSupply, genPrice, vPrice, eventDate, location, groups);
         vm.expectEmit();
         address treasurerResults = ticketOffice.getTreasurer(0);
         assertEq(treasurerResults, ownerWallet);
@@ -187,7 +165,7 @@ contract TicketOfficeTest is Test {
         console.log("USD BALANCE", usdCoin.balanceOf(address(124)));
         vm.startPrank(address(124));
         usdCoin.approve(contractAddress, 5050);
-        vm.expectRevert("Tickets Sold Out");
+        vm.expectRevert("Tickets sold out");
         ticketOffice.mintTicketGeneral(0, 101, address(1));
         ticketOffice.createEvent(name, baseUrl, genSupply, vSupply, genPrice, vPrice, eventDate, location, groups);
         deal(address(usdCoin),address(345),2500);
@@ -197,7 +175,7 @@ contract TicketOfficeTest is Test {
         ticketOffice.mintTicketGeneral(1, 50, address(1));
         vm.startPrank(address(678)); 
         usdCoin.approve(contractAddress, 2550);
-        vm.expectRevert("Tickets Sold Out");
+        vm.expectRevert("Tickets sold out");
         ticketOffice.mintTicketGeneral(1, 51, address(1));
     }
 
@@ -233,7 +211,7 @@ contract TicketOfficeTest is Test {
         deal(address(usdCoin),address(56),200);
         vm.startPrank(address(56));
         usdCoin.approve(contractAddress, 200);
-        vm.expectRevert("Tickets Sold Out");
+        vm.expectRevert("Tickets sold out");
         ticketOffice.mintTicketVip(0, 2, address(56));
     }
 
@@ -538,17 +516,69 @@ contract TicketOfficeTest is Test {
         ticketOffice.changeLocation(0, "House of Blues");
     }
 
-    function testCloseTicketOffice() public {
-        // Test if we can close the ticket office
+
+    function testBurnFails() public {
+        // test if burning a 1155 ticket from outside wallet fails
         vm.startPrank(ownerWallet);
+        deal(address(usdCoin),address(1), 100);
         ticketOffice.createEvent(name, baseUrl, genSupply, vSupply, genPrice, vPrice, eventDate, location, groups);
         vm.startPrank(address(1));
         usdCoin.approve(contractAddress, 100);
         ticketOffice.mintTicketGeneral(0, 1, address(1));
-        vm.stopPrank();
+        vm.startPrank(address(2));
+        vm.expectRevert("Required to use cheers finance to burn tickets");
+        ERC1155Token(0x104fBc016F4bb334D775a19E8A6510109AC63E00).burn(address(1),0,1);
+    }
+
+    function testCloseTicketOffice() public {
+        // Test if close ticket office will cause openOffice modifier to revert functions
+        vm.startPrank(address(5));
+        ticketOffice.createEvent(name, baseUrl, genSupply, vSupply, genPrice, vPrice, eventDate, location, groups);
+        vm.startPrank(contractOwner);
         ticketOffice.closeTicketOffice();
         vm.startPrank(address(2));
         vm.expectRevert("Ticket Office Closed");
-        ticketOffice.mintTicketGeneral(0, 1, address(2));
+        ticketOffice.createEvent(name, baseUrl, genSupply, vSupply, genPrice, vPrice, eventDate, location, groups);
+        vm.expectRevert("Ticket Office Closed");
+        ticketOffice.mintTicketGeneral(0, 1, address(1));
+        vm.expectRevert("Ticket Office Closed");
+        ticketOffice.mintTicketVip(0, 1, address(1));
+        vm.expectRevert("Ticket Office Closed");
+        ticketOffice.redeemTicket(0);
+        vm.expectRevert("Ticket Office Closed");
+        vm.startPrank(address(5));
+        ticketOffice.compOne(0, address(1));
+        vm.expectRevert("Ticket Office Closed");
+        address[] memory CompArray = new address[](4);
+        CompArray[0] = address(7);
+        CompArray[1] = address(8);
+        CompArray[2] = address(9);
+        CompArray[3] = address(10);
+        ticketOffice.compMany(0, CompArray);
+        vm.expectRevert("Ticket Office Closed");
+        ticketOffice.addPerformers(0, "The Beatles");
+        vm.expectRevert("Ticket Office Closed");
+        ticketOffice.removePerformers(0, 0);
+        vm.expectRevert("Ticket Office Closed");
+        ticketOffice.changeLocation(0, "The Astrodome");
+        vm.expectRevert("Ticket Office Closed");
+        ticketOffice.changeEventDate(0, eventDate);
+    }
+
+    function testBurnTicket() public {
+        // Test if burning a 1155 ticket succceeds and if someone else attempts, test fails
+        vm.startPrank(ownerWallet);
+        deal(address(usdCoin),address(888), 200);
+        ticketOffice.createEvent(name, baseUrl, genSupply, vSupply, genPrice, vPrice, eventDate, location, groups);
+        vm.startPrank(address(888));
+        usdCoin.approve(contractAddress, 100);
+        ticketOffice.mintTicketGeneral(0, 2, address(888));
+        vm.startPrank(contractOwner);
+        ticketOffice.revokeTickets(address(888),0,0, 1);
+        vm.expectRevert();
+        ticketOffice.revokeTickets(address(888),0,0, 3);
+        vm.startPrank(address(899));
+        vm.expectRevert("Unauthorized Access");
+        ticketOffice.revokeTickets(address(888),0,0, 1);
     }
 }
