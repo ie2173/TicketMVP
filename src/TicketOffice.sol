@@ -51,6 +51,7 @@ contract TicketOffice is ITicketOffice{
         uint256 eventDate;
         string concertLocation;
         string[] performers;
+        string[] keywords;
     }
     
     IERC20 internal _usdc;
@@ -58,7 +59,9 @@ contract TicketOffice is ITicketOffice{
     address internal _contractOwner;
     uint256 internal _eventIdCounter = 0;
     mapping(uint256 => address) public eventTicketAddress;
-    mapping(uint256 => mapping(address => mapping(uint256 => bool))) public freeTicketVoucher;
+    // eventID(uint) => ticketarraylocation(uint) => number of tickets Sold
+    mapping(uint256=>mapping(uint256 => uint256)) public ticketPurchasedCounter;
+    mapping(address => mapping(uint256 => mapping(uint256 =>bool))) public freeTicketVoucher;
     mapping(uint256 => TicketDetails) public eventDetails;
     mapping(uint256 => uint256) private eventBalance;
     mapping(uint256 => address) public withdrawlApproval;
@@ -81,7 +84,7 @@ contract TicketOffice is ITicketOffice{
     }
 
     modifier openOffice() {
-        require(ticketOfficeOpen, "Ticket Office Closed");
+        require(ticketOfficeOpen, "Ticket Office is Closed");
         _;
     }
 
@@ -109,13 +112,21 @@ contract TicketOffice is ITicketOffice{
         return eventTicketAddress[eventId];
     }
 
-    function getEventPrice(uint256 eventId, uint256 ticketId) public view returns (uint256) {
+    function getTicketPrices(uint256 eventId) public view returns (uint256[] memory) {
+        return eventDetails[eventId].ticketPrices;
+    }
+
+    function getTicketPrice(uint256 eventId, uint256 ticketId) public view returns(uint256) {
         return eventDetails[eventId].ticketPrices[ticketId];
     }
     
 
     function getEventCapacity(uint256 eventId, uint256 ticketId) public view returns(uint256) {
         return eventDetails[eventId].ticketCapacities[ticketId];
+    }
+
+    function getEventCapacities(uint256 eventId) public view returns (uint256[] memory) {
+        return eventDetails[eventId].ticketCapacities;
     }
 
     function getEventDate(uint256 eventId) public view returns (uint256) {
@@ -147,7 +158,7 @@ contract TicketOffice is ITicketOffice{
     }
     
     function issuedComp(uint256 eventId, address user, uint256 ticketId) public view returns(bool) {
-        return freeTicketVoucher[eventId][user][ticketId];
+        return freeTicketVoucher[user][eventId][ticketId];
     }
     
     function getTreasurer (uint256 eventId) public view returns (address) {
@@ -166,7 +177,8 @@ contract TicketOffice is ITicketOffice{
             uint256[] memory ticketCapacities, 
             uint256 eventDate, 
             string memory eventLocation, 
-            string[] memory performers
+            string[] memory performers,
+            string [] memory keywords
             ) public openOffice(){
 
         require(block.timestamp + 86400 * 3 < eventDate, "Event Must be created at least 3 days in advance");
@@ -175,19 +187,20 @@ contract TicketOffice is ITicketOffice{
         address eventAddress = address(ticketNft);
         require(eventAddress != address(0));
         eventTicketAddress[_eventIdCounter] = eventAddress;
-        eventDetails[_eventIdCounter] = TicketDetails(ticketNames,ticketCapacities,ticketPrices,new uint256[](ticketNames.length),newName,msg.sender,eventDate,eventLocation,performers);
+        eventDetails[_eventIdCounter] = TicketDetails(ticketNames,ticketCapacities,ticketPrices,new uint256[](ticketNames.length),newName,msg.sender,eventDate,eventLocation,performers,keywords);
         withdrawlApproval[_eventIdCounter] = msg.sender;
-        emit Event(_eventIdCounter, newName,eventAddress, ticketNames,ticketPrices, ticketCapacities,eventDate, eventLocation, performers);
+        emit Event(_eventIdCounter, newName,eventAddress, ticketNames,ticketPrices, ticketCapacities,eventDate, eventLocation, performers, keywords);
         _eventIdCounter++;
     }
 
     function mintSingleTicket(uint256 eventId, uint256 quantity, uint256 ticketId ,  address to) public openOffice() {
         require(eventTicketAddress[eventId] != address(0), "Event Does Not Exist");
         require(!eventLocked[eventId], "Concert Event is Frozen" );
+        require(eventDetails[eventId].ticketCapacities[ticketId] >= quantity + eventDetails[eventId].ticketsSold[ticketId], "Event is Sold out" );
         address id = eventTicketAddress[eventId];
-        uint256 grossCost = getEventPrice(eventId, ticketId) * quantity;
-        require(_usdc.balanceOf(msg.sender) == grossCost,"Insufficient Funds HIT FUNCTION CHECK");
-        _usdc.transferFrom(msg.sender, address(this), grossCost);
+        uint256 grossCost = getTicketPrice(eventId, ticketId) * quantity;
+        bool success = _usdc.transferFrom(msg.sender, address(this), grossCost);
+        require(success);
         eventBalance[eventId] += grossCost;
         ERC1155Token(id).mint(to,ticketId,quantity);
         eventDetails[eventId].ticketsSold[ticketId] += quantity;
@@ -198,27 +211,27 @@ contract TicketOffice is ITicketOffice{
         require(eventTicketAddress[eventId] != address(0), "Event Does Not Exist");
         require(!eventLocked[eventId], "Concert Event is Frozen" );
         address id = eventTicketAddress[eventId];
+        for (uint256 i = 0; i < ticketIds.length; i++) {
+            require(eventDetails[eventId].ticketCapacities[ticketIds[i]] >= amounts[i] + eventDetails[eventId].ticketsSold[ticketIds[i]], "Event is Sold out" );
+        }
         uint256 grossCost =0;
         for (uint256 i = 0; i < ticketIds.length; i++) {
-            grossCost += getEventPrice(eventId, ticketIds[i]) * amounts[i];
+            grossCost += getTicketPrice(eventId, ticketIds[i]) * amounts[i];
         }
-        require(_usdc.balanceOf(msg.sender) >= grossCost,"Insufficient Funds HIT FUNCTION CHECK");
-        _usdc.transferFrom(msg.sender, address(this), grossCost);
+        bool success = _usdc.transferFrom(msg.sender, address(this), grossCost);
+        require(success);
         eventBalance[eventId] += grossCost;
         ERC1155Token(id).mintBatchTickets(to, ticketIds, amounts);
         for (uint256 i = 0; i < ticketIds.length; i++) {
             eventDetails[eventId].ticketsSold[ticketIds[i]] += amounts[i];
-        }
-        for (uint256 i = 0; i < ticketIds.length; i++) {
             emit TicketPurchased(to, eventId, ticketIds[i],amounts[i]);
         }
-        
     }
     
     function redeemTicket(uint256 eventId,uint256 ticketId) public openOffice() {
-        require(freeTicketVoucher[eventId][msg.sender][ticketId], "Ineligible for Comped Ticket");
+        require(freeTicketVoucher[msg.sender][eventId][ticketId], "Ineligible for Comped Ticket");
         address id = eventTicketAddress[eventId];
-        freeTicketVoucher[eventId][msg.sender][ticketId] = false;
+        freeTicketVoucher[msg.sender][eventId][ticketId] = false;
         ERC1155Token(id).mint(msg.sender,ticketId,1);
     }
 
@@ -238,7 +251,6 @@ contract TicketOffice is ITicketOffice{
     function lockEvent(uint256 eventId) public   {
         require(_contractOwner == msg.sender, "Unauthorized Access");
         eventLocked[eventId] = true;
-
     }
 
     function unLockEvent(uint256 eventId) public {
@@ -252,12 +264,12 @@ contract TicketOffice is ITicketOffice{
     }
     
     function compOne(uint256 eventId, address user, uint256 ticketId) public okAdmin(eventId) openOffice() {
-        freeTicketVoucher[eventId][user][ticketId] = true;
+        freeTicketVoucher[user][eventId][ticketId] = true;
     }
 
     function compMany(uint256 eventId, address[] memory users, uint256 ticketId) public okAdmin(eventId) openOffice() {
             for (uint i = 0; i < users.length; i++) {
-                freeTicketVoucher[eventId][users[i]][ticketId] = true;
+                freeTicketVoucher[users[i]][eventId][ticketId] = true;
             }
     }
     
@@ -265,7 +277,8 @@ contract TicketOffice is ITicketOffice{
         
         eventDetails[eventId].performers.push(newPerformer);
         emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].ticketNames ,eventDetails[eventId].ticketPrices, eventDetails[eventId].ticketCapacities,
-      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers) ;
+      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers, eventDetails[eventId].keywords);
+      return eventDetails[eventId].performers;
     }
     
     function removePerformers (uint256 eventId, uint256 _index) public okAdmin(eventId) openOffice() returns(string[] memory) {
@@ -274,15 +287,15 @@ contract TicketOffice is ITicketOffice{
             eventDetails[eventId].performers[i] = eventDetails[eventId].performers[i + 1];
         }
         eventDetails[eventId].performers.pop();
-        emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].ticketNames ,eventDetails[eventId].ticketPrices, eventDetails[eventId].ticketCapacities,
-      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers);
+       emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].ticketNames ,eventDetails[eventId].ticketPrices, eventDetails[eventId].ticketCapacities,
+      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers, eventDetails[eventId].keywords);
         return eventDetails[eventId].performers;
     }
     
     function changeLocation (uint256 eventId, string memory newLocation) public okAdmin(eventId) openOffice() returns(string memory){
         eventDetails[eventId].concertLocation = newLocation;
         emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].ticketNames ,eventDetails[eventId].ticketPrices, eventDetails[eventId].ticketCapacities,
-      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers);
+      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers, eventDetails[eventId].keywords);
         return eventDetails[eventId].concertLocation;
     }
     
@@ -293,7 +306,7 @@ contract TicketOffice is ITicketOffice{
 
         eventDetails[eventId].eventDate = newDate;
         emit Event(eventId, eventDetails[eventId].name, getAddress(eventId), eventDetails[eventId].ticketNames ,eventDetails[eventId].ticketPrices, eventDetails[eventId].ticketCapacities,
-      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers);
+      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers, eventDetails[eventId].keywords);
         return newDate;
     }
 

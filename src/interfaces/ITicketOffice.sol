@@ -4,7 +4,7 @@ pragma solidity  ^0.8.20;
 interface ITicketOffice {
 
     event Event(uint256 indexed eventIdCounter, string name, address contractAddress, string[] ticketNames ,uint256[] ticketPrices, uint256[] ticketCapacities,
-      uint256 eventDate, string concertLocation, string[] performers);
+      uint256 eventDate, string concertLocation, string[] performers, string[] keywords);
 
     event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 indexed ticketId, uint256 quantity);
 
@@ -14,8 +14,10 @@ interface ITicketOffice {
     function getTicketNames(uint256 eventId) external view returns (string[] memory);
     function isEventOwner(uint256 eventId, address userAddress) external view returns (bool);
     function getAddress(uint256 eventId) external view returns (address);
-    function getEventPrice(uint256 eventId, uint256 ticketId) external view returns (uint256);
+    function getTicketPrice(uint256 eventId, uint256 ticketId) external view returns (uint256);
+    function getTicketPrices(uint256 eventId) external view returns (uint256[] memory);
     function getEventCapacity(uint256 eventId, uint256 ticketId) external view returns (uint256);
+    function getEventCapacities(uint256 eventId) external view returns (uint256[] memory);
     function getEventDate(uint256 eventId) external view returns (uint256);
     function getEventLocation(uint256 eventId) external view returns (string memory);
     function getEventPerformers(uint256 eventId) external view returns (string[] memory);
@@ -26,15 +28,16 @@ interface ITicketOffice {
     function getTreasurer(uint256 eventId) external view returns (address);
     function getEventFunds(uint256 eventId) external view returns (uint256);
     function createEvent(
-        string memory newName,
-        string memory baseURL,
-        string[] memory ticketNames,
-        uint256[] memory ticketPrices,
-        uint256[] memory ticketCapacities,
-        uint256 eventDate,
-        string memory eventLocation,
-        string[] memory performers
-    ) external;
+            string memory newName, 
+            string memory baseURL, 
+            string[] memory ticketNames, 
+            uint256[] memory ticketPrices, 
+            uint256[] memory ticketCapacities, 
+            uint256 eventDate, 
+            string memory eventLocation, 
+            string[] memory performers,
+            string [] memory keywords
+            ) external;
     function mintSingleTicket(uint256 eventId, uint256 quantity, uint256 ticketId, address to) external;
     function mintMultipleTickets(uint256 eventId, uint256[] memory ticketIds, uint256[] memory amounts, address to) external;
     function redeemTicket(uint256 eventId, uint256 ticketId) external;

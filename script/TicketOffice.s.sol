@@ -12,7 +12,7 @@ contract TicketOfficeDeployScript is Script {
 
     function run() public {
         vm.startBroadcast();
-        TicketOffice ticketoffice = new TicketOffice("Cheers Finance",USDC);
+        TicketOffice ticketoffice = new TicketOffice("Cheers Finance",SEPOLIAUSDC);
         console.log("TicketOffice address: ", address(ticketoffice));
     }
 }
