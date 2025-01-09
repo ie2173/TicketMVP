@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity  ^0.8.20;
 
+import "../libraries/TicketStructs.sol";
+
 interface ITicketOffice {
 
-    event Event(uint256 indexed eventIdCounter, string name, address contractAddress, string[] ticketNames ,uint256[] ticketPrices, uint256[] ticketCapacities,
-      uint256 eventDate, string concertLocation, string[] performers, string[] keywords);
+    event Event(uint256 indexed eventIdCounter, string name, address nftAddress,string ticketUri,  string[] ticketNames ,uint256[] ticketPrices, uint256[] ticketCapacities,
+      uint256 eventDate, string concertLocation, string[] performers, string[] keywords, string[] categories);
 
     event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 indexed ticketId, uint256 quantity);
 
@@ -28,15 +30,9 @@ interface ITicketOffice {
     function getTreasurer(uint256 eventId) external view returns (address);
     function getEventFunds(uint256 eventId) external view returns (uint256);
     function createEvent(
-            string memory newName, 
-            string memory baseURL, 
-            string[] memory ticketNames, 
-            uint256[] memory ticketPrices, 
-            uint256[] memory ticketCapacities, 
-            uint256 eventDate, 
-            string memory eventLocation, 
-            string[] memory performers,
-            string [] memory keywords
+            TicketStructs.Ticketdetails memory ticketDetails, 
+            string memory baseURL
+            
             ) external;
     function mintSingleTicket(uint256 eventId, uint256 quantity, uint256 ticketId, address to) external;
     function mintMultipleTickets(uint256 eventId, uint256[] memory ticketIds, uint256[] memory amounts, address to) external;
