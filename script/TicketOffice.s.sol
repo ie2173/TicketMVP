@@ -19,6 +19,6 @@ contract TicketOfficeDeployScript is Script {
         bytecode = abi.encodePacked(bytecode, abi.encode(USDC, SEPOLIAUSDC));
         address ticketOfficeAddress = create2.deploy(salt, bytecode);
         //TicketOffice ticketoffice = new TicketOffice("Cheers Finance",SEPOLIAUSDC);
-        console.log("TicketOffice address: ", address(ticketoffice));
+        console.log("TicketOffice address: ", ticketOfficeAddress);
     }
 }
