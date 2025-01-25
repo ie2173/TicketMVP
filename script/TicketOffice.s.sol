@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+import "../src/Create2.sol";
 import "lib/forge-std/src/Script.sol";
 import "forge-std/console.sol";
 import "../src/TicketOffice.sol";
@@ -12,7 +13,12 @@ contract TicketOfficeDeployScript is Script {
 
     function run() public {
         vm.startBroadcast();
-        TicketOffice ticketoffice = new TicketOffice("Cheers Finance",SEPOLIAUSDC);
+        Create2 create2 = new Create2();
+        bytes32 salt = keccak256(abi.encodePacked("CheersFinance"));
+        bytes memory bytecode = type(TicketOffice).creationCode;
+        bytecode = abi.encodePacked(bytecode, abi.encode(USDC, SEPOLIAUSDC));
+        address ticketOfficeAddress = create2.deploy(salt, bytecode);
+        //TicketOffice ticketoffice = new TicketOffice("Cheers Finance",SEPOLIAUSDC);
         console.log("TicketOffice address: ", address(ticketoffice));
     }
 }

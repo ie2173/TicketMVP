@@ -14,5 +14,6 @@ library TicketStructs {
         string[] performers;
         string[] keywords;
         string[] categories;
+        string eventType;
     }
 }

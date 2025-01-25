@@ -29,11 +29,12 @@ using TicketStructs for TicketStructs.Ticketdetails;
     string[] public groups = ["the Beasty Boys", "Mc5"]; 
     string[] public keywords = ["music", "festival", "rock"];
     string[] public categories = ["Rock","concert","LiveMusic"];
+    string eventType = "Live";
     TicketStructs.Ticketdetails public details;
 
     // Ticket Office Events
      event Event(uint256 indexed eventIdCounter, string name, address nftAddress,string ticketUri,  string[] ticketNames ,uint256[] ticketPrices, uint256[] ticketCapacities,
-      uint256 eventDate, string concertLocation, string[] performers, string[] keywords, string[] categories);
+      uint256 eventDate, string concertLocation, string[] performers, string[] keywords, string[] categories, string eventType);
 
      event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 indexed ticketId, uint256 quantity);
 
@@ -50,6 +51,10 @@ using TicketStructs for TicketStructs.Ticketdetails;
         usdCoin = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
         contractOwner = address(this);
         contractAddress = address(ticketOffice);
+        uint256[] memory ticketSoldArray = new uint256[](3);
+        ticketSoldArray[0] = 0;
+        ticketSoldArray[1] = 0;
+        ticketSoldArray[2] = 0;
         details = TicketStructs.Ticketdetails({
         // string[] ticketNames;
         // uint256[] ticketCapacities;
@@ -62,17 +67,19 @@ using TicketStructs for TicketStructs.Ticketdetails;
         // string[] performers;
         // string[] keywords;
         // string[] categories;
+        // string eventType;
             ticketNames: ticketNames,
             ticketCapacities: ticketCapacities,
             ticketPrices: ticketPrices,
-            ticketsSold: new uint256[](ticketNames.length),
+            ticketsSold: ticketSoldArray,
             name: eventName,
             owner: ownerWallet,
             eventDate: eventDate,
             concertLocation: location,
             performers: groups,
             keywords: keywords,
-            categories: categories
+            categories: categories,
+            eventType: eventType
         });
     }
     
@@ -87,12 +94,32 @@ using TicketStructs for TicketStructs.Ticketdetails;
     }
 
     function testCreateEvent() public {
+        uint256[] memory ticketSoldArray = new uint256[](3);
+        
         vm.startPrank(ownerWallet);
         vm.expectEmit();
-        emit Event(0,eventName, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),baseUrl,ticketNames,ticketPrices,ticketCapacities,eventDate,location,groups,keywords,categories);
+        emit Event(0,eventName, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),baseUrl,ticketNames,ticketPrices,ticketCapacities,eventDate,location,groups,keywords,categories,eventType);
         ticketOffice.createEvent(details, baseUrl);
         vm.stopPrank();
         
+    }
+
+    function testGetTicketPrice() public {
+        vm.startPrank(ownerWallet);
+        ticketOffice.createEvent(details, baseUrl);
+        uint256 result = ticketOffice.getTicketPrice(0, 0);
+        assertEq(result, ticketPrices[0]);
+    }
+
+    function testGetTicketsSold() public {
+        vm.startPrank(ownerWallet);
+        ticketOffice.createEvent(details, baseUrl);
+        uint256 result = ticketOffice.ticketPurchasedCounter(0, 0);
+        assertEq(result, 0);
+    }
+
+    function testGetEventType() public {
+      
     }
 
 //     function testGetEventName() public {

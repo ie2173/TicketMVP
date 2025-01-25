@@ -6,9 +6,9 @@ import "../libraries/TicketStructs.sol";
 interface ITicketOffice {
 
     event Event(uint256 indexed eventIdCounter, string name, address nftAddress,string ticketUri,  string[] ticketNames ,uint256[] ticketPrices, uint256[] ticketCapacities,
-      uint256 eventDate, string concertLocation, string[] performers, string[] keywords, string[] categories);
+      uint256 eventDate, string concertLocation, string[] performers, string[] keywords, string[] categories, string eventType);
 
-    event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 indexed ticketId, uint256 quantity);
+    event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 indexed ticketTierIndexId, uint256 quantity);
 
    function name() external view returns (string memory);
     function contractOwner() external view returns (address);

@@ -11,6 +11,12 @@ contract ERC1155Token is ERC1155 {
     string public name;
     
 
+ 
+
+// Add a tier in the event emitted for for ticket ID.
+// make sure to include the index ID for the ticket ID in the event. 
+
+
     constructor(string memory newUri, string memory newName)  {
 
         owner = msg.sender;
@@ -48,7 +54,7 @@ contract TicketOffice is ITicketOffice{
     address internal _contractOwner;
     uint256 internal _eventIdCounter = 0;
     mapping(uint256 => address) public eventTicketAddress;
-    // eventID(uint) => ticketarraylocation(uint) => number of tickets Sold
+    // eventID(uint) => ticketarrayindex(uint) => number of tickets Sold
     mapping(uint256=>mapping(uint256 => uint256)) public ticketPurchasedCounter;
     mapping(address => mapping(uint256 => mapping(uint256 =>bool))) public freeTicketVoucher;
     mapping(uint256 => TicketStructs.Ticketdetails) public eventDetails;
@@ -160,7 +166,7 @@ contract TicketOffice is ITicketOffice{
 
     function emitEvent(uint256  eventId) internal {
         emit Event(eventId, eventDetails[eventId].name, getAddress(eventId),ERC1155Token(getAddress(eventId)).uri(), eventDetails[eventId].ticketNames ,eventDetails[eventId].ticketPrices, eventDetails[eventId].ticketCapacities,
-      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers, eventDetails[eventId].keywords,eventDetails[eventId].categories);
+      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers, eventDetails[eventId].keywords,eventDetails[eventId].categories, eventDetails[eventId].eventType);
     }
 
     function createEvent(
@@ -175,7 +181,20 @@ contract TicketOffice is ITicketOffice{
         address eventAddress = address(ticketNft);
         require(eventAddress != address(0));
         eventTicketAddress[_eventIdCounter] = eventAddress;
-        eventDetails[_eventIdCounter] = TicketStructs.Ticketdetails(details.ticketNames,details.ticketCapacities,details.ticketPrices,new uint256[](details.ticketNames.length),details.name,msg.sender,details.eventDate,details.concertLocation,details.performers,details.keywords,details.categories);
+        eventDetails[_eventIdCounter] = TicketStructs.Ticketdetails(
+        details.ticketNames,
+        details.ticketCapacities,
+        details.ticketPrices,
+        new uint256[](details.ticketNames.length),
+        details.name,
+        msg.sender,
+        details.eventDate,
+        details.concertLocation,
+        details.performers,
+        details.keywords,
+        details.categories,
+        details.eventType
+        );
         withdrawlApproval[_eventIdCounter] = msg.sender;
         emitEvent(_eventIdCounter);
         _eventIdCounter++;
