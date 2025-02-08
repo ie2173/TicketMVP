@@ -4,8 +4,10 @@ pragma solidity ^0.8.20;
 import "lib/forge-std/src/Test.sol";
 import "src/TicketOffice.sol";
 import "src/interfaces/IERC20.sol";
+import "../src/libraries/TicketStructs.sol";
 
 contract TicketOfficeTest2 is Test {
+using TicketStructs for TicketStructs.Ticketdetails;
     TicketOffice public ticketOffice;
     ERC1155Token public ERC1155ConcertToken; 
     IERC20 public usdCoin;
@@ -26,10 +28,13 @@ contract TicketOfficeTest2 is Test {
     string public location = "The Astrodome";
     string[] public groups = ["the Beasty Boys", "Mc5"]; 
     string[] public keywords = ["music", "festival", "rock"];
+    string[] public categories = ["Rock","concert","LiveMusic"];
+    string eventType = "Live";
+    TicketStructs.Ticketdetails public details;
 
     // Ticket Office Events
-     event Event(uint256 indexed eventIdCounter, string name, address contractAddress, string[] ticketNames ,uint256[] ticketPrices, uint256[] ticketCapacities,
-      uint256 eventDate, string concertLocation, string[] performers, string[] keywords);
+     event Event(uint256 indexed eventIdCounter, string name, address nftAddress,string ticketUri,  string[] ticketNames ,uint256[] ticketPrices, uint256[] ticketCapacities,
+      uint256 eventDate, string concertLocation, string[] performers, string[] keywords, string[] categories, string eventType);
 
      event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 indexed ticketId, uint256 quantity);
 
@@ -46,6 +51,36 @@ contract TicketOfficeTest2 is Test {
         usdCoin = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
         contractOwner = address(this);
         contractAddress = address(ticketOffice);
+        uint256[] memory ticketSoldArray = new uint256[](3);
+        ticketSoldArray[0] = 0;
+        ticketSoldArray[1] = 0;
+        ticketSoldArray[2] = 0;
+        details = TicketStructs.Ticketdetails({
+        // string[] ticketNames;
+        // uint256[] ticketCapacities;
+        // uint256[] ticketPrices;
+        // uint256[] ticketsSold;
+        // string name;
+        // address owner;
+        // uint256 eventDate;
+        // string concertLocation;
+        // string[] performers;
+        // string[] keywords;
+        // string[] categories;
+        // string eventType;
+            ticketNames: ticketNames,
+            ticketCapacities: ticketCapacities,
+            ticketPrices: ticketPrices,
+            ticketsSold: ticketSoldArray,
+            name: eventName,
+            owner: ownerWallet,
+            eventDate: eventDate,
+            concertLocation: location,
+            performers: groups,
+            keywords: keywords,
+            categories: categories,
+            eventType: eventType
+        });
     }
     
     function testGetContractName() public {
@@ -59,67 +94,81 @@ contract TicketOfficeTest2 is Test {
     }
 
     function testCreateEvent() public {
+        uint256[] memory ticketSoldArray = new uint256[](3);
+        
         vm.startPrank(ownerWallet);
         vm.expectEmit();
-        emit Event(0,name, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),ticketNames,ticketPrices,ticketCapacities,eventDate,location,groups,keywords);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        emit Event(0,eventName, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),baseUrl,ticketNames,ticketPrices,ticketCapacities,eventDate,location,groups,keywords,categories,eventType);
+        ticketOffice.createEvent(details, baseUrl);
         vm.stopPrank();
         
     }
 
-    function testGetEventName() public {
+    function testGetTicketPrice() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
-        string memory result = ticketOffice.getEventName(0);
-        assertEq(result, name);
+        ticketOffice.createEvent(details, baseUrl);
+        uint256 result = ticketOffice.getTicketPrice(0, 0);
+        assertEq(result, ticketPrices[0]);
     }
+
+    function testGetTicketsSold() public {
+        vm.startPrank(ownerWallet);
+        ticketOffice.createEvent(details, baseUrl);
+        uint256 result = ticketOffice.ticketPurchasedCounter(0, 0);
+        assertEq(result, 0);
+    }
+
+    
+
+     function testGetEventName() public {
+     vm.startPrank(ownerWallet);
+     ticketOffice.createEvent(details,baseUrl);
+    string memory result = ticketOffice.getEventName(0);
+    assertEq(result, eventName); }
+
+
 
     function testGetIsEventOwner() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
-        bool trueResult = ticketOffice.isEventOwner(0, ownerWallet);
-        assertTrue(trueResult);
-        bool falseResult = ticketOffice.isEventOwner(0, address(2));
-        assertFalse(falseResult);
+        ticketOffice.createEvent(details, baseUrl);
+        bool result = ticketOffice.isEventOwner(0, ownerWallet);
+        assertTrue(result);
     }
 
-    function testGetEvent1155Address() public {
-        vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
-        address result = ticketOffice.getAddress(0);
-        assertEq(result, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00));
-        address result2 = ticketOffice.getAddress(1);
-        assertEq(result2, address(0));
-    }
 
-    function testGetTicketNames() public {
-        vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
-        string[] memory result = ticketOffice.getTicketNames(0);
-        assertEq(result[0], ticketNames[0]);
-        assertEq(result[1], ticketNames[1]);
-        assertEq(result[2], ticketNames[2]);
-    }
+     function testGetEvent1155Address() public { 
+         vm.startPrank(ownerWallet);
+        ticketOffice.createEvent(details, baseUrl);
+        address results = ticketOffice.getAddress(0);
+        string memory verification = ERC1155Token(results).name();
+        assertEq(eventName, verification);
+        }
+    
+
+
+     function testGetTicketNames() public {
+         vm.startPrank(ownerWallet);
+         ticketOffice.createEvent(details, baseUrl);
+         string[] memory result = ticketOffice.getTicketNames(0);
+         assertEq(result[0], ticketNames[0]);
+         assertEq(result[1], ticketNames[1]);
+         assertEq(result[2], ticketNames[2]);
+     }
 
     function testGetTicketPrices() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         uint256[] memory result = ticketOffice.getTicketPrices(0);
         assertEq(result[0], ticketPrices[0]);
         assertEq(result[1], ticketPrices[1]);
         assertEq(result[2], ticketPrices[2]);
     }
 
-    function testGetTicketPrice() public {
-        vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
-        uint256 result = ticketOffice.getTicketPrice(0, 0);
-        assertEq(result, ticketPrices[0]);
-    }
+    
 
     function testGetTicketCapacities() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         uint256[] memory result = ticketOffice.getEventCapacities(0);
         assertEq(result[0], ticketCapacities[0]);
         assertEq(result[1], ticketCapacities[1]);
@@ -127,14 +176,14 @@ contract TicketOfficeTest2 is Test {
     }
     function testGetTicketCapacity() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         uint256 result = ticketOffice.getEventCapacity(0, 0);
         assertEq(result, ticketCapacities[0]);
     }
 
     function testGetEventOwner() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+       ticketOffice.createEvent(details, baseUrl);
         address result = ticketOffice.getEventOwner(0);
         assertEq(result, ownerWallet);
     }
@@ -142,7 +191,7 @@ contract TicketOfficeTest2 is Test {
     function testSingleMintTicketPasses() public {
     // set up event, Set up wallets with USDC, and approve the contract to spend the USDC
     vm.startPrank(ownerWallet);
-    ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+    ticketOffice.createEvent(details, baseUrl);
     vm.stopPrank();
     deal(address(usdCoin),address(278),50);
     assertEq(usdCoin.balanceOf(address(278)),50);
@@ -184,7 +233,7 @@ contract TicketOfficeTest2 is Test {
     ticketOffice.mintSingleTicket(0, 1, 0, address(278));
     // set up event, Set up wallets with USDC, and approve the contract to spend the USDC
      vm.startPrank(ownerWallet);
-    ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+   ticketOffice.createEvent(details, baseUrl);
     vm.stopPrank();
     deal(address(usdCoin),address(278),10*101);
     vm.startPrank(address(278));
@@ -207,17 +256,29 @@ contract TicketOfficeTest2 is Test {
     vm.expectRevert("Event is Sold out");
     ticketOffice.mintSingleTicket(0, 1, 0, address(280));
     // Expect Revert if Ticket ID does not exist
-
+    vm.expectRevert("Event Does Not Exist");
+    ticketOffice.mintSingleTicket(45,1,0,address(280));
     // Expect Revert if Event is Locked
+    vm.stopPrank();
+    ticketOffice.lockEvent(0);
+    vm.startPrank(address(280));
+    vm.expectRevert("Concert Event is Frozen");
+    ticketOffice.mintSingleTicket(0, 1, 0, address(280));
 
     // Expect Revert if Ticket Office is Locked
+    vm.stopPrank();
+    ticketOffice.closeTicketOffice();
+    vm.startPrank(address(280));
+    vm.expectRevert("Ticket Office is Closed");
+    ticketOffice.mintSingleTicket(0, 1, 1, address(280));
+
     
     }
 
     function testMultipleMintTicketsPasses() public {
         // set up event, Set up wallets with USDC, and approve the contract to spend the USDC
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         vm.stopPrank();
         deal(address(usdCoin),address(278),160);
         assertEq(usdCoin.balanceOf(address(278)),160);
@@ -273,7 +334,7 @@ contract TicketOfficeTest2 is Test {
     ticketOffice.mintMultipleTickets(0, ticketIds, amounts, address(278));
      // set up event, Set up wallets with USDC, and approve the contract to spend the USDC
     vm.startPrank(ownerWallet);
-    ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+    ticketOffice.createEvent(details, baseUrl);
     vm.stopPrank();
     deal(address(usdCoin),address(278),10 + 50 + 100);
     vm.startPrank(address(278));
@@ -298,10 +359,23 @@ contract TicketOfficeTest2 is Test {
     vm.expectRevert("Event is Sold out");
     ticketOffice.mintMultipleTickets(0, ticketIds, amounts, address(279));
      // Expect Revert if Ticket ID does not exist
+    vm.expectRevert("Event Does Not Exist");
+    ticketOffice.mintMultipleTickets(45, ticketIds, amounts, address(279));
 
     // Expect Revert if Event is Locked
+    vm.stopPrank();
+    ticketOffice.lockEvent(0);
+    vm.startPrank(address(279));
+    vm.expectRevert("Concert Event is Frozen");
+    ticketOffice.mintMultipleTickets(0, ticketIds, amounts, address(279));
 
     // Expect Revert if Ticket Office is Locked
+    vm.stopPrank();
+    ticketOffice.closeTicketOffice();
+    vm.startPrank(address(279));
+    vm.expectRevert("Ticket Office is Closed");
+    ticketOffice.mintMultipleTickets(0, ticketIds, amounts, address(279));
+
     }
 
     function testEventLocked() public {
@@ -316,7 +390,8 @@ contract TicketOfficeTest2 is Test {
     deal(address(usdCoin),address(123), 50);
     deal(address(usdCoin),address(456), 100);
     vm.startPrank(ownerWallet);
-   ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+    ticketOffice.createEvent(details, baseUrl);
+    ticketOffice.compOne(0, address(123), 0);
     vm.stopPrank();
     ticketOffice.lockEvent(0);
     vm.startPrank(address(123));
@@ -325,6 +400,8 @@ contract TicketOfficeTest2 is Test {
     ticketOffice.mintSingleTicket(0, 1, 0, address(123));
     vm.expectRevert("Concert Event is Frozen");
     ticketOffice.mintMultipleTickets(0, ticketIds, amounts, address(123));
+    vm.expectRevert("Concert Event is Frozen");
+    ticketOffice.redeemTicket(0, 0);
     vm.stopPrank();
     ticketOffice.unLockEvent(0);
     vm.startPrank(address(123));
@@ -341,7 +418,7 @@ contract TicketOfficeTest2 is Test {
         // Test mintSingle refund works
         deal(address(usdCoin),address(123), 10);
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+       ticketOffice.createEvent(details, baseUrl);
         vm.startPrank(address(123));
         usdCoin.approve(contractAddress, 10);
         ticketOffice.mintSingleTicket(0, 1, 0, address(123));
@@ -391,7 +468,23 @@ contract TicketOfficeTest2 is Test {
         assertEq(mintMultipleRefundBalanceofResults[1], 0);
         uint256 usdcBalanceOfResult1 = usdCoin.balanceOf(address(456));
         assertEq(usdcBalanceOfResult1, 50);
+        
+        // Expect Afer Ticket Transfer Works.
+        vm.stopPrank();
+        ticketOffice.unLockEvent(0);
+        vm.startPrank(address(910));
+        deal(address(usdCoin),address(910),100);
+        usdCoin.approve(contractAddress, 100);
+        ticketOffice.mintSingleTicket(0, 1, 0, address(910));
+        address token = ticketOffice.getAddress(0);
+        ERC1155Token(token).safeTransferFrom(address(910), address(206), 0, 1, "");
+        bool transferWorked = ticketOffice.isTicketHolder(0,address(206),0);
+        assertTrue(transferWorked);
+
+
         // Expect Revert 
+        vm.stopPrank();
+        ticketOffice.lockEvent(0);
         vm.startPrank(address(678));
         vm.expectRevert("Insufficient Balance");
         ticketOffice.issueRefund(0, 0);
@@ -400,14 +493,14 @@ contract TicketOfficeTest2 is Test {
         vm.stopPrank();
         ticketOffice.unLockEvent(0);
         vm.startPrank(address(789));
-        vm.expectRevert("Ineligible for Refund");
+        vm.expectRevert("Refund Ineligible");
         ticketOffice.issueRefund(0, 1);
     }
 
     function testCompTickets() public {
         // set up event
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         // Set Up Comp One Ticket
         ticketOffice.compOne(0, address(278), 0);
         // Verify issedComp works
@@ -426,7 +519,7 @@ contract TicketOfficeTest2 is Test {
         uint256[] memory balanceResult = ticketOffice.ticketHoldersBalance(0, addressArray, ticketIdArray);
         assertEq(balanceResult[0], 1);
         // verify can't double redeem ticket
-        vm.expectRevert("Ineligible for Comped Ticket");
+        vm.expectRevert("Comp Ineligible");
         ticketOffice.redeemTicket(0, 0);
         vm.stopPrank();        
         // Test Comp Many Ticket 
@@ -449,17 +542,17 @@ contract TicketOfficeTest2 is Test {
     function testRedeemTicketReverts() public {
         // test redeem reverts if no ticket comp
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         vm.startPrank(address(278));
         bool issuedResult = ticketOffice.issuedComp(0, address(278), 0);
         assertFalse(issuedResult);
-        vm.expectRevert("Ineligible for Comped Ticket");
+        vm.expectRevert("Comp Ineligible");
         ticketOffice.redeemTicket(0, 0);
     }
 
     function testAddTreasurer() public {
     vm.startPrank(ownerWallet);
-    ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+    ticketOffice.createEvent(details, baseUrl);
     ticketOffice.approveTreasurer(0, address(123));
     address treasurer = ticketOffice.getTreasurer(0);
     assertEq(treasurer, address(123));
@@ -467,13 +560,13 @@ contract TicketOfficeTest2 is Test {
 
     function testAddPerformers() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         vm.expectEmit();
         string[] memory newGroups = new string[](3);
         newGroups[0] = "the Beasty Boys";
         newGroups[1] = "Mc5";
         newGroups[2] = "The Rolling Stones";
-        emit Event(0,name, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),ticketNames,ticketPrices,ticketCapacities,eventDate,location,newGroups,keywords);
+        emit Event(0,eventName, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),baseUrl,ticketNames,ticketPrices,ticketCapacities,eventDate,location,newGroups,keywords,categories,eventType);
         string[] memory results = ticketOffice.addPerformers(0, "The Rolling Stones");
         assertEq(results[0], "the Beasty Boys");
         assertEq(results[1], "Mc5");
@@ -482,11 +575,11 @@ contract TicketOfficeTest2 is Test {
 
     function testRemovePerformers() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         vm.expectEmit();
         string[] memory newGroups = new string[](1);
         newGroups[0] = "the Beasty Boys";
-        emit Event(0,name, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),ticketNames,ticketPrices,ticketCapacities,eventDate,location,newGroups,keywords);
+        emit Event(0,eventName, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),baseUrl,ticketNames,ticketPrices,ticketCapacities,eventDate,location,newGroups,keywords,categories,eventType);
         string[] memory results = ticketOffice.removePerformers(0, 1);
         assertEq(results[0],"the Beasty Boys");
         
@@ -494,11 +587,11 @@ contract TicketOfficeTest2 is Test {
 
     function testChangeLocation() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         string memory result = ticketOffice.getEventLocation(0);
         assertEq(result, location);
         vm.expectEmit();
-        emit Event(0,name, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),ticketNames,ticketPrices,ticketCapacities,eventDate,"Antartica",groups,keywords);
+        emit Event(0,eventName, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),baseUrl,ticketNames,ticketPrices,ticketCapacities,eventDate,"Antartica",groups,keywords,categories,eventType);
         string memory result1 = ticketOffice.changeLocation(0, "Antartica");
         assertEq(result1, "Antartica");
     }
@@ -507,11 +600,11 @@ contract TicketOfficeTest2 is Test {
         // Event Date is 5 days from present block time stamp
         uint256 oneDay = 86400 * 3;
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         uint256 result = ticketOffice.getEventDate(0);
         assertEq(result, eventDate, "The top Assert Failed");
         vm.expectEmit();
-        emit Event(0,name, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),ticketNames,ticketPrices,ticketCapacities,eventDate + oneDay * 3,location,groups,keywords);
+        emit Event(0,eventName, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),baseUrl,ticketNames,ticketPrices,ticketCapacities,eventDate + oneDay * 3,location,groups,keywords,categories,eventType);
         // add three days to event date 3 + 5 days equals 8 days
         uint256 result1 = ticketOffice.changeEventDate(0, eventDate + oneDay * 3);
         console.log("initial Date Change value:", result1);
@@ -530,16 +623,16 @@ contract TicketOfficeTest2 is Test {
         console.log(timeCheck - 172800, block.timestamp + (oneDay * 4));
         vm.warp(block.timestamp + oneDay * 4);
         vm.expectEmit();
-        emit Event(0,name, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),ticketNames,ticketPrices,ticketCapacities,eventDate + oneDay * 4,location,groups,keywords);
+        emit Event(0,eventName, address(0x104fBc016F4bb334D775a19E8A6510109AC63E00),baseUrl,ticketNames,ticketPrices,ticketCapacities,eventDate + oneDay * 4,location,groups,keywords,categories, eventType);
          uint256 result2 = ticketOffice.changeEventDate(0, eventDate + oneDay * 4 );
         assertEq(result2, eventDate + oneDay * 4);
      }
 
     function testChangeUri() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         string memory result = ticketOffice.getEventName(0);
-        assertEq(result, name);
+        assertEq(result, eventName);
        
         string memory result1 = ticketOffice.changeUri(0, "Cheers Finance");
         assertEq(result1, "Cheers Finance");
@@ -554,7 +647,7 @@ contract TicketOfficeTest2 is Test {
     function testWithdrawFunds() public {
     // set up event
     vm.startPrank(ownerWallet);
-    ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+    ticketOffice.createEvent(details, baseUrl);
     // set up 3 wallets to buy tickets
     deal(address(usdCoin),address(123), 160);
     deal(address(usdCoin),address(456), 160 * 2);
@@ -605,7 +698,7 @@ contract TicketOfficeTest2 is Test {
 
     function testRevokeTickets() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         vm.startPrank(address(123));
         deal(address(usdCoin),address(123), 100);
         usdCoin.approve(contractAddress, 100);
@@ -623,7 +716,7 @@ contract TicketOfficeTest2 is Test {
 
     function testCloseTicketOffice() public {
         vm.startPrank(ownerWallet);
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         vm.startPrank(address(123));
         deal(address(usdCoin),address(123), 100);
         usdCoin.approve(contractAddress, 100);
@@ -649,7 +742,7 @@ contract TicketOfficeTest2 is Test {
         vm.stopPrank();
         vm.startPrank(address(678));
         vm.expectRevert("Ticket Office is Closed");
-        ticketOffice.createEvent(name, baseUrl, ticketNames, ticketPrices, ticketCapacities, eventDate, location, groups, keywords);
+        ticketOffice.createEvent(details, baseUrl);
         //expect redeem ticket reverts
         vm.expectRevert("Ticket Office is Closed");
         ticketOffice.redeemTicket(0, 2);
@@ -661,11 +754,41 @@ contract TicketOfficeTest2 is Test {
         vm.expectRevert("Ticket Office is Closed");
         ticketOffice.compOne(0, address(123), 2);
         // expect comp many reverts
+        vm.expectRevert("Ticket Office is Closed");
+        address[] memory CompAddressArray = new address[](4);
+        CompAddressArray[0] = address(279);
+        CompAddressArray[1] = address(280);
+        CompAddressArray[2] = address(281);
+        CompAddressArray[3] = address(282);
+        ticketOffice.compMany(0, CompAddressArray, 2);
+        // expect issue refund reverts
+        vm.expectRevert("Ticket Office is Closed");
+        ticketOffice.issueRefund(0, 2);
+        // expect revoke tickets reverts
+        vm.expectRevert("Ticket Office is Closed");
+        vm.stopPrank();
+        ticketOffice.revokeTickets(address(123), 0, 2, 1);
+        // expect withdraw funds reverts
+        vm.expectRevert("Ticket Office is Closed");
+        vm.startPrank(ownerWallet);
+        ticketOffice.withdrawFunds(0);
+
         // expects add performers reverts
+        vm.expectRevert("Ticket Office is Closed");
+        
+        ticketOffice.addPerformers(0, "The Rolling Stones");
         //expect remove performers reverts
+        vm.expectRevert("Ticket Office is Closed");
+        ticketOffice.removePerformers(0, 1);
         // expect change location reverts
+        vm.expectRevert("Ticket Office is Closed");
+        ticketOffice.changeLocation(0, "Antartica");
         // expect change event date reverts
+        vm.expectRevert("Ticket Office is Closed");
+        ticketOffice.changeEventDate(0, eventDate + 86400 * 3);
         // expect change uri reverts
+        vm.expectRevert("Ticket Office is Closed");
+        ticketOffice.changeUri(0, "Cheers Finance");
 
 
     }

@@ -2,12 +2,13 @@
 pragma solidity  ^0.8.20;
 // OpenZeppelin Contracts (last updated v5.0.0) (token/ERC1155/ERC1155.sol)
 
-import "../interfaces/IERC1155.sol";
-import "../interfaces/IERC1155Receiver.sol";
-import "../interfaces/IERC1155Meta.sol";
-import "../utils/ERC165.sol";
-import "@openzeppelin/contracts/utils/Arrays.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import {Arrays} from  "@openzeppelin/contracts/utils/Arrays.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {IERC1155} from "../interfaces/IERC1155.sol";
+import {IERC1155Meta} from  "../interfaces/IERC1155Meta.sol";
+import {IERC1155Receiver} from "../interfaces/IERC1155Receiver.sol";
+import {ERC165} from "../utils/ERC165.sol";
+
 
  contract ERC1155 is ERC165, IERC1155 {
     using Arrays for uint256[];
@@ -127,52 +128,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
             }
         } }
 
-        function _doSafeTransferAcceptanceCheck(address operator, address from, address to, uint256 id, uint256 value, bytes memory data) private {
-    if (to.code.length > 0) {
-        try IERC1155Receiver(to).onERC1155Received(operator, from, id, value, data)
-            returns (bytes4 response)
-        {
-            if (response != IERC1155Receiver.onERC1155Received.selector) {
-                revert();
-            }
-        } catch (bytes memory reason) {
-            if (reason.length == 0) {
-                revert();
-            } else {
-                assembly {
-                    revert(add(32, reason), mload(reason))
-                }
-            }
-        }
-    }
-}
-
-        function _doSafeBatchTransferAcceptanceCheck(address operator, address from, address to, uint256[] memory ids, uint256[] memory values, bytes memory data) private {
-            if (to.code.length > 0 ) {
-                try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, values, data) returns (bytes4 response) {
-                    if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {
-                        revert("Safe Batch acceptance check step 1");
-
-                    }
-                } catch (bytes memory reason) {
-                    if (reason.length == 0) {
-                        revert("Do safe batch transfer acceptance check step 2");
-                    } else {
-                        assembly {
-                            revert(add(32, reason),mload(reason))
-                        }
-                    }
-
-                }
-            }
-
-        }
-
-        
-
-    
-
-    function _setBaseURI(string memory newUri) internal virtual  {
+         function _setBaseURI(string memory newUri) internal virtual  {
         _baseUri = newUri;
     }
 
@@ -238,6 +194,47 @@ import "@openzeppelin/contracts/utils/Strings.sol";
         _updateWithAcceptanceCheck(from, address(0), ids, values, "");
 
     }
+
+        function _doSafeTransferAcceptanceCheck(address operator, address from, address to, uint256 id, uint256 value, bytes memory data) private {
+    if (to.code.length > 0) {
+        try IERC1155Receiver(to).onERC1155Received(operator, from, id, value, data)
+            returns (bytes4 response)
+        {
+            if (response != IERC1155Receiver.onERC1155Received.selector) {
+                revert();
+            }
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                revert();
+            } else {
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+}
+
+        function _doSafeBatchTransferAcceptanceCheck(address operator, address from, address to, uint256[] memory ids, uint256[] memory values, bytes memory data) private {
+            if (to.code.length > 0 ) {
+                try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, values, data) returns (bytes4 response) {
+                    if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {
+                        revert("Safe Batch acceptance check step 1");
+
+                    }
+                } catch (bytes memory reason) {
+                    if (reason.length == 0) {
+                        revert("Do safe batch transfer acceptance check step 2");
+                    } else {
+                        assembly {
+                            revert(add(32, reason),mload(reason))
+                        }
+                    }
+
+                }
+            }
+
+        }
 
     function _asSingletonArrays(uint256 element1, uint256 element2) private pure returns (uint256[] memory array1, uint256[] memory array2) {
         /// @solidity memory-safe-assembly
