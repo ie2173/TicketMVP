@@ -18,15 +18,17 @@ addr := create2(callvalue(),add(creationCode,0x20),mload(creationCode),salt)}
 
 function computeAddress(bytes32 salt, bytes32 creationCodeHash) external view returns (address addr) {
     address contractAddress = address(this);
+        
     assembly {
-    let ptr := mload(0x40)
-    mstore(add(ptr,0x20),creationCodeHash)
-    mstore(add(ptr,0x40),salt)
-    mstore(ptr, contractAddress)
-    let start := add(ptr, 0x0b)
-    mstore8(start, 0xff)
-    addr := keccak256(start,85)
+        let ptr := mload(0x40)
 
-    } 
+        mstore(add(ptr, 0x40), creationCodeHash)
+        mstore(add(ptr, 0x20), salt)
+        mstore(ptr, contractAddress)
+        let start := add(ptr, 0x0b)
+        mstore8(start, 0xff)
+        addr := keccak256(start, 85)
+    }
+
     }
 }
