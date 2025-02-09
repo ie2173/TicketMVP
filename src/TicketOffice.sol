@@ -259,15 +259,18 @@ contract TicketOffice is ITicketOffice{
     }
     
     function approveTreasurer(uint256 eventId, address treasurer) public okAdmin(eventId) openOffice() returns(address){
+        require(!eventLocked[eventId],"Concert Event is Frozen" );
             withdrawlApproval[eventId] = treasurer;
             return treasurer;
     }
     
     function compOne(uint256 eventId, address user, uint256 ticketId) public okAdmin(eventId) openOffice() {
+        require(!eventLocked[eventId], "Concert Event is Frozen" );
         freeTicketVoucher[user][eventId][ticketId] = true;
     }
 
     function compMany(uint256 eventId, address[] memory users, uint256 ticketId) public okAdmin(eventId) openOffice() {
+        require(!eventLocked[eventId], "Concert Event is Frozen" );
             uint length = users.length;
             for (uint i = 0; i < length; i++) {
                 freeTicketVoucher[users[i]][eventId][ticketId] = true;
