@@ -715,6 +715,10 @@ using TicketStructs for TicketStructs.Ticketdetails;
     }
 
     function testCloseTicketOffice() public {
+        vm.startPrank(address(999));
+        vm.expectRevert("Unauthorized Access");
+        ticketOffice.closeTicketOffice();
+        vm.stopPrank();
         vm.startPrank(ownerWallet);
         ticketOffice.createEvent(details, baseUrl);
         vm.startPrank(address(123));
@@ -789,8 +793,55 @@ using TicketStructs for TicketStructs.Ticketdetails;
         // expect change uri reverts
         vm.expectRevert("Ticket Office is Closed");
         ticketOffice.changeUri(0, "Cheers Finance");
+    }
+
+    function testLockEvent() public {
+        vm.startPrank(ownerWallet);
+        ticketOffice.createEvent(details, baseUrl);
+        vm.startPrank(address(123));
+        deal(address(usdCoin),address(123), 100);
+        usdCoin.approve(contractAddress, 100);
+        ticketOffice.mintSingleTicket(0, 1, 2, address(123));
+        vm.stopPrank();
+        ticketOffice.lockEvent(0);
+        vm.startPrank(address(123));
+        // expect mint single reverts
+        vm.expectRevert("Concert Event is Frozen");
+        ticketOffice.mintSingleTicket(0, 1, 2, address(123));
+        // expect mint multiple reverts
+        vm.expectRevert("Concert Event is Frozen");
+        uint256[] memory ticketIds = new uint256[](3);
+        ticketIds[0] = 0;
+        ticketIds[1] = 1;
+        ticketIds[2] = 2;
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = 1;
+        amounts[1] = 1;
+        amounts[2] = 1;
+        ticketOffice.mintMultipleTickets(0, ticketIds, amounts, address(123));
+        vm.startPrank(address(678));
+        //expect redeem ticket reverts
+        vm.expectRevert("Comp Ineligible");
+        ticketOffice.redeemTicket(0, 2);
+        // expect change treasurer reverts
+        vm.startPrank(ownerWallet);
+        vm.expectRevert("Concert Event is Frozen");
+        ticketOffice.approveTreasurer(0, address(123));
+        // expect compone reverts
+        vm.expectRevert("Concert Event is Frozen");
+        ticketOffice.compOne(0, address(123), 2);
+        // expect comp many reverts
+        vm.expectRevert("Concert Event is Frozen");
+        address[] memory CompAddressArray = new address[](4);
+        CompAddressArray[0] = address(279);
+        CompAddressArray[1] = address(280);
+        CompAddressArray[2] = address(281);
+        CompAddressArray[3] = address(282);
+        ticketOffice.compMany(0, CompAddressArray, 2);
+        // expect revoke tickets reverts
 
 
+        
     }
 
 
