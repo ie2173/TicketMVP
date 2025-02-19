@@ -20,13 +20,13 @@ contract TicketOfficeDeployScript is Script {
         vm.startBroadcast();
 
         // Using a consistent salt for cross-chain deployment
-        bytes32 salt = keccak256(abi.encodePacked("TicketOffice_v1"));
+        bytes32 salt = keccak256(abi.encodePacked("TicketOffice_v2"));
         console.log("Salt used:", vm.toString(salt));
 
         // Deploy using CREATE2 with Forge's native support
         TicketOffice ticketOffice = new TicketOffice{salt: salt}(
             "Cheers Finance",
-            USDC
+            SEPOLIAUSDC
         );
 
         address deployedAddress = address(ticketOffice);
