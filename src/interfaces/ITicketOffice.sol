@@ -6,7 +6,7 @@ import "../libraries/TicketStructs.sol";
 interface ITicketOffice {
 
     event Event(uint256 indexed eventIdCounter, string name, address nftAddress,string ticketUri,  string[] ticketNames ,uint256[] ticketPrices, uint256[] ticketCapacities,
-      uint256 eventDate, string concertLocation, string[] performers, string[] keywords, string[] categories, string eventType);
+      uint256 eventDate, TicketStructs.LocationDetails locationDetails ,string[] performers, string[] keywords, string[] categories, string eventType);
 
     event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 indexed ticketTierIndexId, uint256 quantity);
 
@@ -21,7 +21,7 @@ interface ITicketOffice {
     function getEventCapacity(uint256 eventId, uint256 ticketId) external view returns (uint256);
     function getEventCapacities(uint256 eventId) external view returns (uint256[] memory);
     function getEventDate(uint256 eventId) external view returns (uint256);
-    function getEventLocation(uint256 eventId) external view returns (string memory);
+    function getEventLocation(uint256 eventId) external view returns (TicketStructs.LocationDetails memory);
     function getEventPerformers(uint256 eventId) external view returns (string[] memory);
     function ticketHoldersBalance(uint256 eventId, address[] memory users, uint256[] memory ticketIds) external view returns (uint256[] memory);
     function getEventOwner(uint256 eventId) external view returns (address);
@@ -30,7 +30,8 @@ interface ITicketOffice {
     function getTreasurer(uint256 eventId) external view returns (address);
     function getEventFunds(uint256 eventId) external view returns (uint256);
     function createEvent(
-            TicketStructs.Ticketdetails memory ticketDetails, 
+            TicketStructs.Ticketdetails calldata ticketDetails, 
+            TicketStructs.Tickets calldata ticketInformation,
             string memory baseURL
             
             ) external;
@@ -43,10 +44,12 @@ interface ITicketOffice {
     function approveTreasurer(uint256 eventId, address treasurer) external returns (address);
     function compOne(uint256 eventId, address user, uint256 ticketId) external;
     function compMany(uint256 eventId, address[] memory users, uint256 ticketId) external;
-    function addPerformers(uint256 eventId, string memory newPerformer) external returns (string[] memory);
-    function removePerformers(uint256 eventId, uint256 _index) external returns (string[] memory);
-    function changeLocation(uint256 eventId, string memory newLocation) external returns (string memory);
-    function changeEventDate(uint256 eventId, uint256 newDate) external returns (uint256);
+    function editEvent(uint256 eventId, TicketStructs.Ticketdetails calldata ticketDetails,
+    TicketStructs.Tickets calldata tickets) external;
+    //function addPerformers(uint256 eventId, string memory newPerformer) external returns (string[] memory);
+    //function removePerformers(uint256 eventId, uint256 _index) external returns (string[] memory);
+    //function changeLocation(uint256 eventId, string memory newLocation) external returns (string memory);
+    //function changeEventDate(uint256 eventId, uint256 newDate) external returns (uint256);
     function changeUri(uint256 eventId, string memory newUri) external returns (string memory);
     function withdrawFunds(uint256 eventId) external;
     function revokeTickets(address user, uint256 eventId, uint8 tokenId, uint256 value) external;

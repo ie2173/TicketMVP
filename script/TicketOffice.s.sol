@@ -8,6 +8,7 @@ import "../src/TicketOffice.sol";
 contract TicketOfficeDeployScript is Script {
     address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public SEPOLIAUSDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+    address public CheersFinanceEth = 0x70AFEF91DAe765B1E45A9736c21D7cd061EAf205;
     
     // The address that will sign the transaction
     address public constant SIGNER = 0x70AFEF91DAe765B1E45A9736c21D7cd061EAf205;
@@ -26,7 +27,8 @@ contract TicketOfficeDeployScript is Script {
         // Deploy using CREATE2 with Forge's native support
         TicketOffice ticketOffice = new TicketOffice{salt: salt}(
             "Cheers Finance",
-            USDC
+            SEPOLIAUSDC,
+            SIGNER
         );
 
         address deployedAddress = address(ticketOffice);

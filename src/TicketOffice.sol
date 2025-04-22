@@ -45,6 +45,7 @@ contract ERC1155Token is ERC1155 {
 
 contract TicketOffice is ITicketOffice{
     using TicketStructs for TicketStructs.Ticketdetails;
+    using TicketStructs for TicketStructs.LocationDetails;
     
     IERC20 internal _usdc;
     string internal _name;
@@ -60,8 +61,8 @@ contract TicketOffice is ITicketOffice{
     bool public ticketOfficeOpen;
     
 
-    constructor(string memory  __name, address usdcAddress) {
-        _contractOwner = msg.sender;
+    constructor(string memory  __name, address usdcAddress, address ownerofContract) {
+        _contractOwner = ownerofContract;
         _name = __name;
         _usdc = IERC20(usdcAddress);
         ticketOfficeOpen = true;
@@ -92,7 +93,7 @@ contract TicketOffice is ITicketOffice{
     }
 
     function getTicketNames(uint256 eventId) public view returns (string[] memory) {
-        return eventDetails[eventId].ticketNames;
+        return eventDetails[eventId].ticketInformation.ticketNames;
     }
     
     function isEventOwner(uint256 eventId, address userAddress) public view returns (bool) {
@@ -104,28 +105,28 @@ contract TicketOffice is ITicketOffice{
     }
 
     function getTicketPrices(uint256 eventId) public view returns (uint256[] memory) {
-        return eventDetails[eventId].ticketPrices;
+        return eventDetails[eventId].ticketInformation.ticketPrices;
     }
 
     function getTicketPrice(uint256 eventId, uint256 ticketId) public view returns(uint256) {
-        return eventDetails[eventId].ticketPrices[ticketId];
+        return eventDetails[eventId].ticketInformation.ticketPrices[ticketId];
     }
     
 
     function getEventCapacity(uint256 eventId, uint256 ticketId) public view returns(uint256) {
-        return eventDetails[eventId].ticketCapacities[ticketId];
+        return eventDetails[eventId].ticketInformation.ticketCapacities[ticketId];
     }
 
     function getEventCapacities(uint256 eventId) public view returns (uint256[] memory) {
-        return eventDetails[eventId].ticketCapacities;
+        return eventDetails[eventId].ticketInformation.ticketCapacities;
     }
 
     function getEventDate(uint256 eventId) public view returns (uint256) {
         return eventDetails[eventId].eventDate;
     }
 
-    function getEventLocation(uint256 eventId) public view returns (string memory ) {
-        return eventDetails[eventId].concertLocation;
+    function getEventLocation(uint256 eventId) public view returns ( TicketStructs.LocationDetails memory ) {
+        return eventDetails[eventId].locationDetails;
     }
 
     function getEventPerformers(uint256 eventId) public view returns (string[] memory ) {
@@ -161,29 +162,35 @@ contract TicketOffice is ITicketOffice{
     }
 
     function createEvent(
-            TicketStructs.Ticketdetails memory details, 
+            TicketStructs.Ticketdetails calldata details,
+            TicketStructs.Tickets calldata ticketInformation,
             string memory baseURL 
             
             ) public openOffice(){
 
         require(block.timestamp + 86400 * 3 < details.eventDate, "Event Must be created at least 3 days in advance");
+
+        TicketStructs.Tickets memory ticketDeets = TicketStructs.Tickets(
+            ticketInformation.ticketNames,
+            ticketInformation.ticketCapacities,
+            ticketInformation.ticketPrices,
+            new uint256[](ticketInformation.ticketNames.length)
+        );
         
         ERC1155Token ticketNft = new ERC1155Token(baseURL, details.name);
         address eventAddress = address(ticketNft);
         require(eventAddress != address(0));
         eventTicketAddress[_eventIdCounter] = eventAddress;
         eventDetails[_eventIdCounter] = TicketStructs.Ticketdetails(
-        details.ticketNames,
-        details.ticketCapacities,
-        details.ticketPrices,
-        new uint256[](details.ticketNames.length),
         details.name,
         msg.sender,
         details.eventDate,
-        details.concertLocation,
+        ticketDeets,
+        details.locationDetails,
         details.performers,
         details.keywords,
         details.categories,
+        details.eventDescription,
         details.eventType
         );
         withdrawlApproval[_eventIdCounter] = msg.sender;
@@ -194,14 +201,14 @@ contract TicketOffice is ITicketOffice{
     function mintSingleTicket(uint256 eventId, uint256 quantity, uint256 ticketId ,  address to) public openOffice() {
         require(eventTicketAddress[eventId] != address(0), "Event Does Not Exist");
         require(!eventLocked[eventId], "Concert Event is Frozen" );
-        require(eventDetails[eventId].ticketCapacities[ticketId] >= quantity + eventDetails[eventId].ticketsSold[ticketId], "Event is Sold out" );
+        require(eventDetails[eventId].ticketInformation.ticketCapacities[ticketId] >= quantity + eventDetails[eventId].ticketInformation.ticketsSold[ticketId], "Event is Sold out" );
         address id = eventTicketAddress[eventId];
         uint256 grossCost = getTicketPrice(eventId, ticketId) * quantity;
         bool success = _usdc.transferFrom(msg.sender, address(this), grossCost);
         require(success);
         eventBalance[eventId] += grossCost;
         ERC1155Token(id).mint(to,ticketId,quantity);
-        eventDetails[eventId].ticketsSold[ticketId] += quantity;
+        eventDetails[eventId].ticketInformation.ticketsSold[ticketId] += quantity;
         emit TicketPurchased(to, eventId, ticketId,quantity);
     }
 
@@ -209,21 +216,24 @@ contract TicketOffice is ITicketOffice{
         require(eventTicketAddress[eventId] != address(0), "Event Does Not Exist");
         require(!eventLocked[eventId], "Concert Event is Frozen" );
         address id = eventTicketAddress[eventId];
-        uint length = ticketIds.length;
-        for (uint256 i = 0; i < length; i++) {
-            require(eventDetails[eventId].ticketCapacities[ticketIds[i]] >= amounts[i] + eventDetails[eventId].ticketsSold[ticketIds[i]], "Event is Sold out" );
-        }
+        uint length = amounts.length; 
         uint256 grossCost =0;
         for (uint256 i = 0; i < length; i++) {
-            grossCost += getTicketPrice(eventId, ticketIds[i]) * amounts[i];
+            require(eventDetails[eventId].ticketInformation.ticketCapacities[i] >= amounts[i] + eventDetails[eventId].ticketInformation.ticketsSold[i], "Event is Sold out" );
+            grossCost += getTicketPrice(eventId, i) * amounts[i];
         }
+       
+        require (grossCost <= _usdc.balanceOf(msg.sender),"Insufficient Funds");
         bool success = _usdc.transferFrom(msg.sender, address(this), grossCost);
         require(success);
         eventBalance[eventId] += grossCost;
+
         ERC1155Token(id).mintBatchTickets(to, ticketIds, amounts);
         for (uint256 i = 0; i < length; i++) {
-            eventDetails[eventId].ticketsSold[ticketIds[i]] += amounts[i];
+            if (amounts[i] != 0) {
+            eventDetails[eventId].ticketInformation.ticketsSold[ticketIds[i]] += amounts[i];
             emit TicketPurchased(to, eventId, ticketIds[i],amounts[i]);
+            }
         }
     }
     
@@ -241,10 +251,10 @@ contract TicketOffice is ITicketOffice{
         uint256 userBalance = ERC1155Token(id).balanceOf(msg.sender, tokenId);
         require(userBalance > 0,"Insufficient Balance");
         ERC1155Token(id).burn(msg.sender, tokenId, 1);
-        eventBalance[eventId] -= eventDetails[eventId].ticketPrices[tokenId]; 
+        eventBalance[eventId] -= eventDetails[eventId].ticketInformation.ticketPrices[tokenId]; 
         uint256 userBalanceAfter = ERC1155Token(id).balanceOf(msg.sender, tokenId);
         require(userBalanceAfter == userBalance - 1, "Token Burn Failed" );
-        _usdc.transfer(msg.sender, eventDetails[eventId].ticketPrices[tokenId]);
+        _usdc.transfer(msg.sender, eventDetails[eventId].ticketInformation.ticketPrices[tokenId]);
         
     }
     
@@ -276,40 +286,65 @@ contract TicketOffice is ITicketOffice{
                 freeTicketVoucher[users[i]][eventId][ticketId] = true;
             }
     }
-    
-    function addPerformers (uint256 eventId, string memory newPerformer) public okAdmin(eventId) openOffice() returns(string[] memory){
+
+    function editEvent(uint256 eventId, TicketStructs.Ticketdetails calldata details, TicketStructs.Tickets calldata tickets) public okAdmin(eventId) openOffice() {
+        require(!eventLocked[eventId], "Concert Event is Frozen");
+        TicketStructs.Tickets memory ticketDeets = TicketStructs.Tickets(
+            tickets.ticketNames,
+            eventDetails[eventId].ticketInformation.ticketCapacities,
+            tickets.ticketPrices,
+            eventDetails[eventId].ticketInformation.ticketsSold
+        );
+        eventDetails[eventId] = TicketStructs.Ticketdetails(
+        details.name,
+        msg.sender,
+        details.eventDate,
+        ticketDeets,
+        details.locationDetails,
+        details.performers,
+        details.keywords,
+        details.categories,
+        details.eventDescription,
+        details.eventType
+        );
+        emitEvent(eventId);
         
-        eventDetails[eventId].performers.push(newPerformer);
-        emitEvent(eventId);
-        return eventDetails[eventId].performers;
+    
     }
     
-    function removePerformers (uint256 eventId, uint256 _index) public okAdmin(eventId) openOffice() returns(string[] memory) {
-        require(_index < eventDetails[eventId].performers.length, "Out of bounds");
-        uint length = eventDetails[eventId].performers.length;
-        for (uint256 i = _index; i < length - 1; i++) {
-            eventDetails[eventId].performers[i] = eventDetails[eventId].performers[i + 1];
-        }
-        eventDetails[eventId].performers.pop();
-        emitEvent(eventId);
-        return eventDetails[eventId].performers;
-    }
+    // function addPerformers (uint256 eventId, string memory newPerformer) public okAdmin(eventId) openOffice() returns(string[] memory){
+        
+    //     eventDetails[eventId].performers.push(newPerformer);
+    //     emitEvent(eventId);
+    //     return eventDetails[eventId].performers;
+    // }
     
-    function changeLocation (uint256 eventId, string memory newLocation) public okAdmin(eventId) openOffice() returns(string memory){
-        eventDetails[eventId].concertLocation = newLocation;
-       emitEvent(eventId);
-        return eventDetails[eventId].concertLocation;
-    }
+    // function removePerformers (uint256 eventId, uint256 _index) public okAdmin(eventId) openOffice() returns(string[] memory) {
+    //     require(_index < eventDetails[eventId].performers.length, "Out of bounds");
+    //     uint length = eventDetails[eventId].performers.length;
+    //     for (uint256 i = _index; i < length - 1; i++) {
+    //         eventDetails[eventId].performers[i] = eventDetails[eventId].performers[i + 1];
+    //     }
+    //     eventDetails[eventId].performers.pop();
+    //     emitEvent(eventId);
+    //     return eventDetails[eventId].performers;
+    //}
     
-    function changeEventDate(uint256 eventId, uint256 newDate) public okAdmin(eventId) openOffice() returns(uint256){
-        require(eventDetails[eventId].eventDate - 172800 >= block.timestamp, "Date change within Locked Period");
+    // function changeLocation (uint256 eventId, string memory newLocation) public okAdmin(eventId) openOffice() returns(string memory){
+    //     eventDetails[eventId].concertLocation = newLocation;
+    //    emitEvent(eventId);
+    //     return eventDetails[eventId].concertLocation;
+    // }
+    
+    // function changeEventDate(uint256 eventId, uint256 newDate) public okAdmin(eventId) openOffice() returns(uint256){
+    //     require(eventDetails[eventId].eventDate - 172800 >= block.timestamp, "Date change within Locked Period");
 
-        require(newDate > block.timestamp,"Invalid Date");
+    //     require(newDate > block.timestamp,"Invalid Date");
 
-        eventDetails[eventId].eventDate = newDate;
-       emitEvent(eventId);
-        return newDate;
-    }
+    //     eventDetails[eventId].eventDate = newDate;
+    //    emitEvent(eventId);
+    //     return newDate;
+    // }
 
     function changeUri(uint256 eventId, string memory newUri) public okAdmin(eventId) openOffice() returns(string memory){
         address iD = eventTicketAddress[eventId];
@@ -346,7 +381,19 @@ contract TicketOffice is ITicketOffice{
     }
 
     function emitEvent(uint256  eventId) internal {
-        emit Event(eventId, eventDetails[eventId].name, getAddress(eventId),ERC1155Token(getAddress(eventId)).uri(), eventDetails[eventId].ticketNames ,eventDetails[eventId].ticketPrices, eventDetails[eventId].ticketCapacities,
-      eventDetails[eventId].eventDate, eventDetails[eventId].concertLocation, eventDetails[eventId].performers, eventDetails[eventId].keywords,eventDetails[eventId].categories, eventDetails[eventId].eventType);
+        emit Event(
+        eventId, 
+        eventDetails[eventId].name, 
+        getAddress(eventId),
+        ERC1155Token(getAddress(eventId)).uri(), 
+        eventDetails[eventId].ticketInformation.ticketNames,
+        eventDetails[eventId].ticketInformation.ticketPrices,
+        eventDetails[eventId].ticketInformation.ticketCapacities,
+        eventDetails[eventId].eventDate, 
+        eventDetails[eventId].locationDetails, 
+        eventDetails[eventId].performers, 
+        eventDetails[eventId].keywords,
+        eventDetails[eventId].categories, 
+        eventDetails[eventId].eventType);
     }
 }
