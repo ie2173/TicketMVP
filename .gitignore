@@ -5,10 +5,17 @@ broadcast/
 lib/
 
 .DS_Store
+.vscode/
 
 
 # Docs
 docs/
 
+# Keystores
+**/keystores/*
+
 # Dotenv file
 .env
+.env.local
+.env.*
+!.env.example
