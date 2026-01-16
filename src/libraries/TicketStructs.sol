@@ -26,4 +26,18 @@ library TicketStructs {
     uint256[] ticketPrices;
     uint256[] ticketsSold;
   }
+
+  struct TicketInformation {
+    string[] ticketNames;
+    uint256[] ticketCapacities;
+    uint256[] ticketPrices;
+  }
+
+  struct BasicEventInfo {
+    string name;
+    address owner;
+    uint256 eventDate;
+    address eventContract;
+    uint256 ticketTypeCount;
+  }
 }

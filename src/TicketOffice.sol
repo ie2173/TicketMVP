@@ -75,7 +75,7 @@ contract TicketOffice is ITicketOffice, ReentrancyGuard {
   }
 
   modifier openOffice() {
-    require(ticketOfficeOpen, "Ticket Office is Closed");
+    require(ticketOfficeOpen, "Closed");
     _;
   }
 
@@ -183,7 +183,7 @@ contract TicketOffice is ITicketOffice, ReentrancyGuard {
   {
     require(
       block.timestamp + 86_400 * 3 < details.eventDate,
-      "Event Must be created at least 3 days in advance"
+      "3 days advance"
     );
 
     TicketStructs.Tickets memory ticketDeets = TicketStructs.Tickets(
@@ -224,7 +224,7 @@ contract TicketOffice is ITicketOffice, ReentrancyGuard {
     openOffice
     nonReentrant
   {
-    require(eventTicketAddress[eventId] != address(0), "Event Does Not Exist");
+    require(eventTicketAddress[eventId] != address(0), "No event");
     require(!eventLocked[eventId], "Concert Event is Frozen");
     require(
       eventDetails[eventId].ticketInformation.ticketCapacities[ticketId]
@@ -251,7 +251,7 @@ contract TicketOffice is ITicketOffice, ReentrancyGuard {
     openOffice
     nonReentrant
   {
-    require(eventTicketAddress[eventId] != address(0), "Event Does Not Exist");
+    require(eventTicketAddress[eventId] != address(0), "No event");
     require(!eventLocked[eventId], "Concert Event is Frozen");
     address id = eventTicketAddress[eventId];
     uint256 length = amounts.length;
