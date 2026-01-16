@@ -1,1 +1,1 @@
-forge script script/TicketOffice.s.sol:TicketOfficeDeployScript   --chain main --broadcast
+forge script script/TicketOffice.s.sol:TicketOfficeDeployScript   

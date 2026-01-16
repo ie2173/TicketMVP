@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { IERC1155 } from "src/interfaces/IERC1155.sol";
 import { IERC20 } from "src/interfaces/IERC20.sol";
 import { ITicketOffice } from "src/interfaces/ITicketOffice.sol";
 import { ERC1155 } from "src/tokens/ERC1155Base.sol";
@@ -67,16 +66,24 @@ contract TicketOffice is ITicketOffice, ReentrancyGuard {
   }
 
   modifier okAdmin(uint256 eventId) {
-    require(
-      getEventOwner(eventId) == msg.sender || withdrawlApproval[eventId] == msg.sender,
-      "Unauthorized user"
-    );
+    _okAdmin(eventId);
     _;
   }
 
   modifier openOffice() {
-    require(ticketOfficeOpen, "Ticket Office is Closed");
+    _openOffice();
     _;
+  }
+
+  function _okAdmin(uint256 eventId) internal view {
+    require(
+      getEventOwner(eventId) == msg.sender || withdrawlApproval[eventId] == msg.sender,
+      "Unauthorized user"
+    );
+  }
+
+  function _openOffice() internal view {
+    require(ticketOfficeOpen, "Ticket Office is Closed");
   }
 
   function getEventName(uint256 eventId) public view returns (string memory) {
@@ -176,7 +183,7 @@ contract TicketOffice is ITicketOffice, ReentrancyGuard {
   function createEvent(
     TicketStructs.Ticketdetails calldata details,
     TicketStructs.Tickets calldata ticketInformation,
-    string memory baseURL
+    string memory baseUri
   )
     public
     openOffice
@@ -193,7 +200,7 @@ contract TicketOffice is ITicketOffice, ReentrancyGuard {
       new uint256[](ticketInformation.ticketNames.length)
     );
 
-    ERC1155Token ticketNft = new ERC1155Token(baseURL, details.name);
+    ERC1155Token ticketNft = new ERC1155Token(baseUri, details.name);
     address eventAddress = address(ticketNft);
     require(eventAddress != address(0));
     eventTicketAddress[_eventIdCounter] = eventAddress;
