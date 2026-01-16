@@ -9,6 +9,7 @@ The original `TicketOffice.sol` contract was **28,568 bytes**, exceeding Ethereu
 We implemented a **Factory Pattern** that splits functionality into two deployable contracts:
 
 ### 📋 Contract Sizes (✅ = Under Limit)
+
 - **✅ TicketOfficeFactory**: 24,222 bytes (354 bytes under limit)
 - **✅ EventContract**: 19,840 bytes (4,736 bytes under limit)
 - **❌ Original TicketOffice**: 27,987 bytes (3,411 bytes over limit)
@@ -16,6 +17,7 @@ We implemented a **Factory Pattern** that splits functionality into two deployab
 ## 🏛️ Architecture
 
 ### TicketOfficeFactory
+
 - **Purpose**: Creates and manages events
 - **Responsibilities**:
   - Deploy new EventContract instances
@@ -24,6 +26,7 @@ We implemented a **Factory Pattern** that splits functionality into two deployab
   - Manage global settings
 
 ### EventContract
+
 - **Purpose**: Handle individual event operations
 - **Responsibilities**:
   - Ticket sales (single & batch)
@@ -35,6 +38,7 @@ We implemented a **Factory Pattern** that splits functionality into two deployab
 ## 🚀 Deployment
 
 ### Prerequisites
+
 ```bash
 export PRIVATE_KEY="your_private_key"
 export SEPOLIA_RPC_URL="your_sepolia_rpc"
@@ -43,11 +47,13 @@ export ETHERSCAN_API_KEY="your_etherscan_key"
 ```
 
 ### Sepolia Testnet
+
 ```bash
 ./deployFactorySepolia.sh
 ```
 
 ### Ethereum Mainnet
+
 ```bash
 ./deployFactoryMainnet.sh
 ```
@@ -81,16 +87,19 @@ eventInstance.mintSingleTicket(ticketId, quantity, recipient);
 ## 🔧 Technical Details
 
 ### Factory Contract
+
 - Deploys EventContract instances using CREATE opcode
 - Maintains mapping of eventId → contract address
 - Provides event discovery and registry functions
 
 ### Event Contract
+
 - Self-contained event management
 - Full ticket sale and refund functionality
 - Optimized for single-event operations
 
 ### Optimizations Applied
+
 - Compiler optimization: Solc 0.8.24 with IR pipeline
 - Optimizer runs: 1 (optimized for size)
 - Error message shortening
@@ -118,6 +127,7 @@ test/
 ## ✅ Testing
 
 Run the factory pattern tests:
+
 ```bash
 forge test --match-test "testCreateEvent" --fork-url $MAINNET_FORK_URL -v
 ```
