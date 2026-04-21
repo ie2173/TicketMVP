@@ -16,8 +16,7 @@ library TicketStructs {
   }
 
   struct LocationDetails {
-    string concertLocation;
-    string venueName;
+    string venue;
   }
 
   struct Tickets {
@@ -25,5 +24,6 @@ library TicketStructs {
     uint256[] ticketCapacities;
     uint256[] ticketPrices;
     uint256[] ticketsSold;
+    uint256[] feePercentages;
   }
 }
